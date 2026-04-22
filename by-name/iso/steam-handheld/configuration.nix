@@ -1,6 +1,8 @@
 {
+  self,
   pkgs,
   lib,
+  system,
   ...
 }: {
   documentation = {
@@ -28,7 +30,7 @@
   };
 
   environment.systemPackages = [
-    pkgs.local.scripts.system-install
+    self.packages."${system}".scripts.system-install
   ];
 
   hardware.amdgpu.initrd.enable = false;

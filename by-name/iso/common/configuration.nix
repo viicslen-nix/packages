@@ -114,7 +114,7 @@ with lib; {
       ntfs3g
       networkmanager
       git
-      local.scripts.system-install
+      self.packages."${system}".scripts.system-install
     ];
   };
 
