@@ -13,9 +13,14 @@
   in {
     formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.alejandra);
 
-    packages = forAllSystems (system:
+    packages = forAllSystems (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+        config.allowUnfree = true;
+      };
+    in
       nixpkgs.lib.packagesFromDirectoryRecursive {
-        callPackage = (import nixpkgs {inherit system;}).callPackage;
+        callPackage = pkgs.callPackage;
         directory = ./by-name;
       });
   };
