@@ -2,7 +2,6 @@
   lib,
   stdenv,
   fetchurl,
-  autoPatchelfHook,
   unzip,
   ...
 }:
@@ -24,16 +23,18 @@ stdenv.mkDerivation (finalAttrs: {
     else throw "Unsupported platform: ${stdenv.hostPlatform.system}"
   );
 
-  nativeBuildInputs = [
-    autoPatchelfHook
-    unzip
-  ];
+  nativeBuildInputs = [unzip];
 
   sourceRoot = ".";
+
+  # CodeRabbit is a Bun single-file executable with embedded payload offsets.
+  # Stripping mutates the ELF and causes it to fall back to generic Bun mode.
+  dontStrip = true;
 
   installPhase = ''
     runHook preInstall
 
+    # CodeRabbit bundles a Bun single-file executable; do not patch the ELF.
     install -Dm755 coderabbit $out/bin/coderabbit
     ln -s $out/bin/coderabbit $out/bin/cr
 
