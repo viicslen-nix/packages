@@ -1,12 +1,30 @@
 {
   lib,
-  python3,
+  python3Packages,
   fetchFromGitHub,
   testers,
   krr,
 }:
 
-python3.pkgs.buildPythonPackage (finalAttrs: {
+let
+  pythonPackages = python3Packages.overrideScope (
+    self: super: {
+      pydantic = self.pydantic_1;
+      # yarl only uses pydantic in tests; skip its pydantic tests under v1
+      yarl = super.yarl.overridePythonAttrs {
+        disabledTestPaths = (super.yarl.disabledTestPaths or [ ]) ++ [ "test_pydantic.py" ];
+      };
+      # django test_media_root_pathlib fails when building from source (not pydantic-related)
+      django = super.django.overridePythonAttrs {
+        disabledTests = (super.django.disabledTests or [ ]) ++ [ "test_media_root_pathlib" ];
+      };
+    }
+  );
+
+  # Use the local package definition from this flake for compatibility with krr.
+  localPrometrix = pythonPackages.callPackage ../../python/prometrix/package.nix { };
+in
+pythonPackages.buildPythonApplication rec {
   pname = "krr";
   version = "1.28.0";
   pyproject = true;
@@ -14,55 +32,59 @@ python3.pkgs.buildPythonPackage (finalAttrs: {
   src = fetchFromGitHub {
     owner = "robusta-dev";
     repo = "krr";
-    tag = "v${finalAttrs.version}";
-    hash = "sha256-Bc1Ql3z/UmOXE2RJYC5/sE4a3MFdE06I3HwKY+SdSlk=";
+    tag = "v${version}";
+    hash = "sha256-1wCvoqlFBgC7SSPdq13q4CjR/rJnhv5g/xrty9YUQtg=";
   };
 
   postPatch = ''
-    # substituteInPlace robusta_krr/__init__.py \
-    #   --replace-warn '1.7.0-dev' '${finalAttrs.version}'
+    substituteInPlace robusta_krr/__init__.py \
+      --replace-fail 'dev' '${version}'
 
     substituteInPlace pyproject.toml \
-      --replace '1.8.2-dev' '${finalAttrs.version}' \
-      --replace 'kubernetes = "^26.1.0"' 'kubernetes = "*"' \
-      --replace 'pydantic = "1.10.7"' 'pydantic = "*"' \
-      --replace 'typer = { extras = ["all"], version = "^0.7.0" }' 'typer = { extras = ["all"], version = "*" }'
-
-    # Fix pydantic v2 compatibility by using pydantic.v1 namespace
-    find . -type f -name '*.py' | while read f; do
-      sed -i 's/import pydantic as pd/import pydantic.v1 as pd/g' "$f"
-      sed -i 's/from pydantic import/from pydantic.v1 import/g' "$f"
-      sed -i 's/^import pydantic$/import pydantic.v1 as pydantic/g' "$f"
-    done
+      --replace-fail '1.8.2-dev' '${version}'
   '';
 
-  propagatedBuildInputs = with python3.pkgs; [
-    aiostream
+  pythonRelaxDeps = true;
+
+  pythonRemoveDeps = [
+    # Transitive dependency version pins, not direct imports
+    "idna"
+    "setuptools"
+    "urllib3"
+    "zipp"
+  ];
+
+  build-system = with pythonPackages; [
+    poetry-core
+  ];
+
+  dependencies = with pythonPackages; [
     alive-progress
     cachetools
     kubernetes
     numpy
-    poetry-core
+    pandas
     prometheus-api-client
-    prometrix
-    pydantic_1
-    pydantic-settings
+    localPrometrix
+    pydantic
+    pyyaml
+    requests
     slack-sdk
+    tenacity
     typer
   ];
 
-  nativeCheckInputs = with python3.pkgs; [
+  nativeCheckInputs = with pythonPackages; [
+    pytest-asyncio
     pytestCheckHook
   ];
 
-  # Skip runtime dependency checks due to version mismatches with available packages
-  pythonRuntimeDepsCheckHook = "true";
-  # Allow pydantic v1 and v2 to coexist (needed for prometrix)
-  pythonCatchConflictsPhase = "true";
-
-  pythonImportsCheck = [];
-
+  # Tests require a Kubernetes cluster and use deprecated click API (mix_stderr)
   doCheck = false;
+
+  pythonImportsCheck = [
+    "robusta_krr"
+  ];
 
   passthru.tests.version = testers.testVersion {
     package = krr;
@@ -78,9 +100,9 @@ python3.pkgs.buildPythonPackage (finalAttrs: {
       reduces costs and improves performance.
     '';
     homepage = "https://github.com/robusta-dev/krr";
-    changelog = "https://github.com/robusta-dev/krr/releases/tag/v${finalAttrs.src.rev}";
+    changelog = "https://github.com/robusta-dev/krr/releases/tag/${src.tag}";
     license = lib.licenses.mit;
     maintainers = [ ];
     mainProgram = "krr";
   };
-})
+}
