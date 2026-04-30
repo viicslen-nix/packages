@@ -14,14 +14,14 @@
 
 buildPythonPackage {
   pname = "prometrix";
-  version = "0.2.11-unstable-2026-03-11";
+  version = "0.2.11-unstable-2026-04-07";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "robusta-dev";
     repo = "prometrix";
-    rev = "e84d6639226aea5f9ef1ea565d1932bf29807344";
-    hash = "sha256-V4lG47vn+nXa1H8Tp/RsZ2KUk7HhojrzNZQBlnWL1eE=";
+    rev = "e1eceacc35e5f10fa4cf8a3bc7e2b52c5cbad9f6";
+    hash = "sha256-TSCNBidkIhHtF6LieTACMDSJXROLW2/hd+mtcAzkBwc=";
   };
 
   pythonRelaxDeps = true;

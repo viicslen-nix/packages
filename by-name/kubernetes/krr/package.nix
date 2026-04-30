@@ -14,10 +14,10 @@ let
       yarl = super.yarl.overridePythonAttrs {
         disabledTestPaths = (super.yarl.disabledTestPaths or [ ]) ++ [ "test_pydantic.py" ];
       };
-      # django test_media_root_pathlib fails when building from source (not pydantic-related)
-      django = super.django.overridePythonAttrs {
-        disabledTests = (super.django.disabledTests or [ ]) ++ [ "test_media_root_pathlib" ];
-      };
+      # django tests are not relevant for krr (transitive dep only)
+      django = super.django.overridePythonAttrs (_: {
+        doCheck = false;
+      });
     }
   );
 
@@ -42,6 +42,23 @@ pythonPackages.buildPythonApplication rec {
 
     substituteInPlace pyproject.toml \
       --replace-fail '1.8.2-dev' '${version}'
+
+    # Fix TypeError: argument of type 'NoneType' is not iterable when
+    # --namespace / --resource / --prometheus-other-headers / --named-sinks are not provided
+    # (typer returns None for List[str] defaults under pydantic v1).
+    substituteInPlace robusta_krr/main.py \
+      --replace-fail \
+        'namespaces="*" if "*" in namespaces else namespaces,' \
+        'namespaces="*" if namespaces and "*" in namespaces else (namespaces or []),' \
+      --replace-fail \
+        'resources="*" if "*" in resources else resources,' \
+        'resources="*" if resources and "*" in resources else (resources or []),' \
+      --replace-fail \
+        'prometheus_other_headers=prometheus_other_headers,' \
+        'prometheus_other_headers=prometheus_other_headers or [],' \
+      --replace-fail \
+        'named_sinks=named_sinks,' \
+        'named_sinks=named_sinks or [],'
   '';
 
   pythonRelaxDeps = true;
