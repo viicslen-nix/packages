@@ -27,7 +27,7 @@ python3Packages.buildPythonApplication (finalAttrs: {
       icon = "pixelflasher";
       desktopName = "PixelFlasher";
       genericName = "Pixel™ phone flashing GUI utility with features";
-      categories = [ "Development" ];
+      categories = ["Development"];
     })
   ];
 
@@ -59,21 +59,21 @@ python3Packages.buildPythonApplication (finalAttrs: {
     copyDesktopItems
   ];
 
-  buildPhase =
-    let
-      specFile =
-        if stdenv.hostPlatform.isDarwin then
-          if stdenv.hostPlatform.isAarch64 then "build-on-mac" else "build-on-mac-intel-only"
-        else
-          "build-on-linux";
-    in
-    ''
-      runHook preBuild
+  buildPhase = let
+    specFile =
+      if stdenv.hostPlatform.isDarwin
+      then
+        if stdenv.hostPlatform.isAarch64
+        then "build-on-mac"
+        else "build-on-mac-intel-only"
+      else "build-on-linux";
+  in ''
+    runHook preBuild
 
-      pyinstaller --clean --noconfirm --log-level=DEBUG ${specFile}.spec
+    pyinstaller --clean --noconfirm --log-level=DEBUG ${specFile}.spec
 
-      runHook postBuild
-    '';
+    runHook postBuild
+  '';
 
   installPhase = ''
     runHook preInstall
@@ -86,14 +86,14 @@ python3Packages.buildPythonApplication (finalAttrs: {
     runHook postInstall
   '';
 
-  passthru.updateScript = nix-update-script { };
+  passthru.updateScript = nix-update-script {};
 
   meta = {
     description = "Pixel™ phone flashing GUI utility with features";
     homepage = "https://github.com/badabing2005/PixelFlasher";
     changelog = "https://github.com/badabing2005/PixelFlasher/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.agpl3Plus;
-    maintainers = with lib.maintainers; [ cything ];
+    maintainers = with lib.maintainers; [cything];
     mainProgram = "pixelflasher";
     platforms = lib.platforms.linux;
   };

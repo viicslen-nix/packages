@@ -11,7 +11,6 @@
   requests,
   unstableGitUpdater,
 }:
-
 buildPythonPackage {
   pname = "prometrix";
   version = "0.2.11-unstable-2026-04-07";
@@ -34,7 +33,7 @@ buildPythonPackage {
     "zipp"
   ];
 
-  build-system = [ poetry-core ];
+  build-system = [poetry-core];
 
   dependencies = [
     boto3
@@ -48,9 +47,9 @@ buildPythonPackage {
   # https://github.com/robusta-dev/prometrix/issues/9
   doCheck = false;
 
-  pythonImportsCheck = [ "prometrix" ];
+  pythonImportsCheck = ["prometrix"];
 
-  passthru.updateScript = unstableGitUpdater { };
+  passthru.updateScript = unstableGitUpdater {};
 
   meta = {
     description = "Unified Prometheus client";
@@ -60,6 +59,6 @@ buildPythonPackage {
     '';
     homepage = "https://github.com/robusta-dev/prometrix";
     license = lib.licenses.mit;
-    maintainers = [ ];
+    maintainers = [];
   };
 }
