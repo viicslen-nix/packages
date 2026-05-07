@@ -2,6 +2,7 @@
   lib,
   fetchurl,
   appimageTools,
+  makeDesktopItem,
 }: let
   version = "0.0.22";
   pname = "t3code";
@@ -12,12 +13,23 @@
   };
 
   appimageContents = appimageTools.extractType2 {inherit pname version src;};
+
+  desktopItem = makeDesktopItem {
+    name = pname;
+    exec = pname;
+    icon = pname;
+    desktopName = "T3 Code";
+    comment = "AI-powered coding assistant from the creators of t3.chat";
+    categories = ["Development"];
+    startupWMClass = "t3code";
+  };
 in
   appimageTools.wrapType2 {
     inherit pname version src;
 
     extraInstallCommands = ''
-      install -m 444 -D ${appimageContents}/t3code.desktop -t $out/share/applications
+      install -m 444 -D ${desktopItem}/share/applications/${pname}.desktop \
+        $out/share/applications/${pname}.desktop
       cp -r ${appimageContents}/usr/share/icons $out/share
     '';
 
