@@ -13,7 +13,7 @@ stdenv.mkDerivation (finalAttrs: {
     if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64
     then {
       url = "https://cli.coderabbit.ai/releases/${finalAttrs.version}/coderabbit-linux-x64.zip";
-      hash = "sha256-UICH1BOgiR4cOpNgmmW3Orp5wu3t62039hCuSl7O4/o=";
+      hash = "sha256-BBZbcglgXN6pMhHXlJw+RKraizCS+2zoBPm5aVqzgnM=";
     }
     else if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64
     then {

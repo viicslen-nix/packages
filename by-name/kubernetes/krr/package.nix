@@ -12,6 +12,12 @@
       yarl = super.yarl.overridePythonAttrs {
         disabledTestPaths = (super.yarl.disabledTestPaths or []) ++ ["test_pydantic.py"];
       };
+      # slack-sdk test deps pull in python packages currently marked broken.
+      # krr does not require running slack-sdk tests at build/eval time.
+      slack-sdk = super.slack-sdk.overridePythonAttrs (_: {
+        doCheck = false;
+        nativeCheckInputs = [];
+      });
       # django tests are not relevant for krr (transitive dep only)
       django = super.django.overridePythonAttrs (_: {
         doCheck = false;
