@@ -1,7 +1,7 @@
 {pkgs}:
 pkgs.stdenv.mkDerivation rec {
   pname = "phpantom-lsp";
-  version = "0.6.0";
+  version = "0.8.0";
 
   src = pkgs.fetchurl {
     url = "https://github.com/AJenbo/phpantom_lsp/releases/download/${version}/phpantom_lsp-x86_64-unknown-linux-gnu.tar.gz";
