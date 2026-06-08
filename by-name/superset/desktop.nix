@@ -4,7 +4,7 @@
   appimageTools,
   makeDesktopItem,
 }: let
-  version = "1.11.3";
+  version = "1.12.4";
   pname = "superset";
 
   src = fetchurl {
