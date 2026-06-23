@@ -16,11 +16,6 @@ stdenv.mkDerivation (finalAttrs: {
       url = "https://github.com/superset-sh/superset/releases/download/cli-v${finalAttrs.version}/superset-linux-x64.tar.gz";
       hash = "sha256-5iRiVBuB7ZWYT9rrRiLFMxwn+yoUVkiu7PFJALeB0ZU=";
     }
-    else if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64
-    then {
-      url = "https://github.com/superset-sh/superset/releases/download/cli-v${finalAttrs.version}/superset-linux-arm64.tar.gz";
-      hash = "sha256-g9xlgwB+XcX9WQD3+0gq6kom1yWrb2iND3NKf1sl6Qw=";
-    }
     else throw "Unsupported platform: ${stdenv.hostPlatform.system}"
   );
 
@@ -41,8 +36,8 @@ stdenv.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out
-    cp -r ./* $out/
+    install -d $out
+    cp -r bin lib share $out/
 
     runHook postInstall
   '';
@@ -53,7 +48,7 @@ stdenv.mkDerivation (finalAttrs: {
     changelog = "https://github.com/superset-sh/superset/releases/tag/cli-v${finalAttrs.version}";
     license = lib.licenses.unfree;
     mainProgram = "superset";
-    platforms = ["x86_64-linux" "aarch64-linux"];
+    platforms = ["x86_64-linux"];
     sourceProvenance = [lib.sourceTypes.binaryNativeCode];
   };
 })

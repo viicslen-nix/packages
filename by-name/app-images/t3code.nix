@@ -4,12 +4,12 @@
   appimageTools,
   makeDesktopItem,
 }: let
-  version = "0.0.25";
+  version = "0.0.28-nightly.20260617.586";
   pname = "t3code";
 
   src = fetchurl {
     url = "https://github.com/pingdotgg/t3code/releases/download/v${version}/T3-Code-${version}-x86_64.AppImage";
-    hash = "sha256-t8KYAtaQKWmCVOOwvHByosYoqb0Ji35Qe4m+8Gtp/+k=";
+    hash = "sha256-9k35QWRUl32x/pCDZO1BYxhAaPbBZ97SB2FIIF59wGw=";
   };
 
   appimageContents = appimageTools.extractType2 {inherit pname version src;};

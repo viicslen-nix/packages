@@ -4,19 +4,20 @@
   appimageTools,
   makeDesktopItem,
 }: let
-  version = "1.12.4";
+  version = "1.12.5";
   pname = "superset";
+  executableName = "superset-desktop";
 
   src = fetchurl {
     url = "https://github.com/superset-sh/superset/releases/download/desktop-v${version}/Superset-x86_64.AppImage";
-    hash = "sha256-uONFYMJcCl5mKVw5c/HTMrQgrjyphmr3UCSvTdgtS94=";
+    hash = "sha256-dOCE2dPoSSR+gtCzOa9yfvRXTv4kV1w3G1Hb/0l+PvA=";
   };
 
   appimageContents = appimageTools.extractType2 {inherit pname version src;};
 
   desktopItem = makeDesktopItem {
     name = pname;
-    exec = pname;
+    exec = executableName;
     icon = pname;
     desktopName = "Superset";
     comment = "Code editor for the AI agents era";
@@ -26,8 +27,13 @@
 in
   appimageTools.wrapType2 {
     inherit pname version src;
+    extraPkgs = _: [];
 
     extraInstallCommands = ''
+      if [ -e $out/bin/${pname} ]; then
+        mv $out/bin/${pname} $out/bin/${executableName}
+      fi
+
       install -m 444 -D ${desktopItem}/share/applications/${pname}.desktop \
         $out/share/applications/${pname}.desktop
 
@@ -41,7 +47,7 @@ in
       homepage = "https://github.com/superset-sh/superset";
       changelog = "https://github.com/superset-sh/superset/releases/tag/desktop-v${version}";
       license = lib.licenses.unfree;
-      mainProgram = pname;
+      mainProgram = executableName;
       platforms = ["x86_64-linux"];
       sourceProvenance = with lib.sourceTypes; [binaryNativeCode];
     };
