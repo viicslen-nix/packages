@@ -4,13 +4,13 @@
   appimageTools,
   makeDesktopItem,
 }: let
-  version = "1.13.0";
-  pname = "superset";
-  executableName = "superset-desktop";
+  pname = "github-copilot-desktop";
+  version = "1.0.12";
+  executableName = "github-copilot";
 
   src = fetchurl {
-    url = "https://github.com/superset-sh/superset/releases/download/desktop-v${version}/Superset-x86_64.AppImage";
-    hash = "sha256-7eAz8r4kWL9GfZsMxDeFlTat2w4B0Lxs2fA7mOnxUmM=";
+    url = "https://github.com/github/app/releases/download/v${version}/GitHub-Copilot-linux-x64.AppImage";
+    hash = "sha256-IRNoN3pMxXCQFPY3dqvz9aQLwjytfr5IMEETewwtzn8=";
   };
 
   appimageContents = appimageTools.extractType2 {inherit pname version src;};
@@ -18,16 +18,15 @@
   desktopItem = makeDesktopItem {
     name = pname;
     exec = executableName;
-    icon = pname;
-    desktopName = "Superset";
-    comment = "Code editor for the AI agents era";
+    icon = "github-copilot";
+    desktopName = "GitHub Copilot";
+    comment = "Agent-native desktop experience for GitHub Copilot";
     categories = ["Development" "IDE"];
-    startupWMClass = "Superset";
+    startupWMClass = "GitHub Copilot";
   };
 in
   appimageTools.wrapType2 {
     inherit pname version src;
-    extraPkgs = _: [];
 
     extraInstallCommands = ''
       if [ -e $out/bin/${pname} ]; then
@@ -37,18 +36,23 @@ in
       install -m 444 -D ${desktopItem}/share/applications/${pname}.desktop \
         $out/share/applications/${pname}.desktop
 
+      if [ -f ${appimageContents}/github-copilot.png ]; then
+        install -m 444 -D ${appimageContents}/github-copilot.png \
+          $out/share/icons/hicolor/512x512/apps/github-copilot.png
+      fi
+
       if [ -d ${appimageContents}/usr/share/icons ]; then
         cp -r ${appimageContents}/usr/share/icons $out/share
       fi
     '';
 
     meta = {
-      description = "Code editor for the AI agents era";
-      homepage = "https://github.com/superset-sh/superset";
-      changelog = "https://github.com/superset-sh/superset/releases/tag/desktop-v${version}";
+      description = "GitHub Copilot desktop app";
+      homepage = "https://github.com/github/app";
+      changelog = "https://github.com/github/app/releases/tag/v${version}";
       license = lib.licenses.unfree;
       mainProgram = executableName;
       platforms = ["x86_64-linux"];
-      sourceProvenance = with lib.sourceTypes; [binaryNativeCode];
+      sourceProvenance = [lib.sourceTypes.binaryNativeCode];
     };
   }
