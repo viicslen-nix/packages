@@ -1,11 +1,12 @@
 {
   lib,
-  python3Packages,
+  # pydantic v1 (required by krr) is unsupported on python 3.14, the new nixpkgs default.
+  python312Packages,
   fetchFromGitHub,
   testers,
   krr,
 }: let
-  pythonPackages = python3Packages.overrideScope (
+  pythonPackages = python312Packages.overrideScope (
     self: super: {
       pydantic = self.pydantic_1;
       # yarl only uses pydantic in tests; skip its pydantic tests under v1
