@@ -4,13 +4,13 @@
   appimageTools,
   makeDesktopItem,
 }: let
-  version = "1.13.0";
+  version = "1.15.1";
   pname = "superset";
   executableName = "superset-desktop";
 
   src = fetchurl {
     url = "https://github.com/superset-sh/superset/releases/download/desktop-v${version}/Superset-x86_64.AppImage";
-    hash = "sha256-7eAz8r4kWL9GfZsMxDeFlTat2w4B0Lxs2fA7mOnxUmM=";
+    hash = "sha256-aOZ5try8KZs1XHPjxpFbKasRXEd3U5FQLJx7CSoev24=";
   };
 
   appimageContents = appimageTools.extractType2 {inherit pname version src;};
