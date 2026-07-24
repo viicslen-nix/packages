@@ -4,7 +4,7 @@
   appimageTools,
   makeDesktopItem,
 }: let
-  version = "1.15.1";
+  version = "1.16.1";
   pname = "superset";
   executableName = "superset-desktop";
 
