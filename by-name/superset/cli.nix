@@ -8,7 +8,7 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "superset-cli";
-  version = "1.16.1";
+  version = "1.17.1";
 
   src = fetchurl (
     if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64
