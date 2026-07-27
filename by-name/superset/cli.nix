@@ -14,7 +14,7 @@ stdenv.mkDerivation (finalAttrs: {
     if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64
     then {
       url = "https://github.com/superset-sh/superset/releases/download/cli-v${finalAttrs.version}/superset-linux-x64.tar.gz";
-      hash = "sha256-F0MOPU2nDkADW0UKVsTCIChfsry1x/c2mNgptdrua7o=";
+      hash = "sha256-t2IcbnLtDWxsk6WxH6/pjmFGATYDUmeWYIaidOpFpzQ=";
     }
     else throw "Unsupported platform: ${stdenv.hostPlatform.system}"
   );
