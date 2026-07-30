@@ -4,8 +4,8 @@
   lib,
   gum,
   git,
-  nixos-generate-config,
-  nixos-install,
+  # both binaries ship in one package; there are no top-level attrs for them
+  nixos-install-tools,
   nano,
   ...
 }:
@@ -124,7 +124,7 @@ with lib;
 
           # Generate hardware configuration
           echo "Generating hardware configuration..."
-          ${getExe nixos-generate-config} --show-hardware-config > "''${HOST_DIR}/hardware.nix"
+          ${getExe' nixos-install-tools "nixos-generate-config"} --show-hardware-config > "''${HOST_DIR}/hardware.nix"
 
           if [ $? -ne 0 ]; then
             echo "Error: Failed to generate hardware configuration."
@@ -189,7 +189,7 @@ with lib;
 
         if [ "$PROCEED_INSTALL" = "Yes" ]; then
           echo "Starting NixOS installation..."
-          ${getExe nixos-install} --flake "$TARGET_DIR#$HOSTNAME"
+          ${getExe' nixos-install-tools "nixos-install"} --flake "$TARGET_DIR#$HOSTNAME"
           echo "✓ Installation completed!"
         else
           echo "Installation not started. To install later, run:"

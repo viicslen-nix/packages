@@ -26,19 +26,19 @@
     }
   );
 
-  # Use the local package definition from this flake for compatibility with krr.
-  localPrometrix = pythonPackages.callPackage ../../python/prometrix/package.nix {};
+  # Private to krr: needs a python scope, so it cannot be a top-level by-name package.
+  localPrometrix = pythonPackages.callPackage ./prometrix.nix {};
 in
   pythonPackages.buildPythonApplication rec {
     pname = "krr";
-    version = "1.28.0";
+    version = "1.29.0";
     pyproject = true;
 
     src = fetchFromGitHub {
       owner = "robusta-dev";
       repo = "krr";
       tag = "v${version}";
-      hash = "sha256-1wCvoqlFBgC7SSPdq13q4CjR/rJnhv5g/xrty9YUQtg=";
+      hash = "sha256-nf5z1dBVcQF/Zv79EnTzQeH6NsB3fhOUqkfgv5U4Ofo=";
     };
 
     postPatch = ''
@@ -89,6 +89,7 @@ in
       prometheus-api-client
       localPrometrix
       pydantic
+      python-json-logger
       pyyaml
       requests
       slack-sdk

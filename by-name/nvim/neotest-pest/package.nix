@@ -1,13 +1,15 @@
 {pkgs}:
-with pkgs;
+with pkgs; let
+  version = "1.0";
+in
   vimUtils.buildVimPlugin {
     pname = "neotest-pest";
-    version = "1.0";
+    inherit version;
 
     src = fetchFromGitHub {
       owner = "V13Axel";
       repo = "neotest-pest";
-      rev = "v1.0";
+      tag = "v${version}";
       sha256 = "sha256-8iCGpbrDnqJLTiB9oe5RvpTAgi9J9D0y7VzSw9qd0oQ=";
     };
 
