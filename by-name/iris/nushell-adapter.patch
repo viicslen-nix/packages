@@ -374,3 +374,65 @@ index b0bee66..828f1ba 100644
  	} else {
  		shellName = detectShell()
  	}
+diff --git a/spec/system.go b/spec/system.go
+index 785fc03..8f0a800 100644
+--- a/spec/system.go
++++ b/spec/system.go
+@@ -3,6 +3,7 @@ package spec
+ import (
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ 	"sync"
+ )
+ 
+@@ -27,6 +28,11 @@ func scanPath() {
+ 			continue
+ 		}
+ 		for _, f := range files {
++			// nix installs every wrapped program on PATH as a hidden
++			// ".foo-wrapped" sibling; those are internals, not commands
++			if strings.HasPrefix(f.Name(), ".") {
++				continue
++			}
+ 			if !f.IsDir() {
+ 				info, err := f.Info()
+ 				if err == nil && info.Mode()&0111 != 0 {
+diff --git a/spec/system_nix_test.go b/spec/system_nix_test.go
+new file mode 100644
+index 0000000..c48cabc
+--- /dev/null
++++ b/spec/system_nix_test.go
+@@ -0,0 +1,32 @@
++package spec
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++// nix puts a hidden ".foo-wrapped" next to every wrapped program on PATH.
++// Before this filter they ranked as real commands, so an empty-buffer Up
++// pasted things like "..claude-wrapped.wrapbuddy" into the prompt.
++func TestScanPathSkipsHiddenNixWrappers(t *testing.T) {
++	dir := t.TempDir()
++	for _, name := range []string{"realcmd", ".realcmd-wrapped", "..claude-wrapped.wrapbuddy"} {
++		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
++			t.Fatal(err)
++		}
++	}
++	t.Setenv("PATH", dir)
++
++	pathCmds = make(map[string]bool)
++	scanPath()
++
++	if !pathCmds["realcmd"] {
++		t.Error("realcmd should be scanned")
++	}
++	for _, hidden := range []string{".realcmd-wrapped", "..claude-wrapped.wrapbuddy"} {
++		if pathCmds[hidden] {
++			t.Errorf("%q is a nix internal and must not be suggested", hidden)
++		}
++	}
++}
