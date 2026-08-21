@@ -12,21 +12,25 @@ index 06771c5..f368a68 100644
  			histFile = filepath.Join(home, ".bash_history")
  		}
 diff --git a/integration/overlay.go b/integration/overlay.go
-index 20f22ac..ef864a5 100644
+index 20f22ac..3a437a1 100644
 --- a/integration/overlay.go
 +++ b/integration/overlay.go
-@@ -578,6 +578,10 @@ func (o *Overlay) draw() string {
+@@ -578,6 +578,14 @@ func (o *Overlay) draw() string {
  
  	windowSize := min(len(o.Items), maxItems)
  
-+	place := planPlacement(windowSize)
++	// Decide the side from the largest box that could be shown, not the one
++	// being drawn now. Suggestion lists shrink as you type, and deciding from
++	// the current size makes a box that did not fit below suddenly fit, so it
++	// leaps across the prompt mid-keystroke. A stable side beats a snug fit.
++	place := planPlacement(maxItems)
 +	windowSize = min(windowSize, place.rows)
 +	setLastPlacement(place)
 +
  	scrolloffUp := 1
  	if windowSize <= 3 {
  		scrolloffUp = 0
-@@ -603,11 +607,24 @@ func (o *Overlay) draw() string {
+@@ -603,11 +611,24 @@ func (o *Overlay) draw() string {
  	end := start + windowSize
  	totalLines := windowSize + 2
  
@@ -54,7 +58,7 @@ index 20f22ac..ef864a5 100644
  	moveToTarget := func() {
  		s.WriteString("\r")
  		if targetCol > 0 {
-@@ -621,9 +638,7 @@ func (o *Overlay) draw() string {
+@@ -621,9 +642,7 @@ func (o *Overlay) draw() string {
  	isClassic := style == "classic" || style == "minimal" || style == "minimalist"
  
  	// top side border with scroll counter
@@ -65,7 +69,7 @@ index 20f22ac..ef864a5 100644
  	moveToTarget()
  
  	scrollInfo := ""
-@@ -652,9 +667,7 @@ func (o *Overlay) draw() string {
+@@ -652,9 +671,7 @@ func (o *Overlay) draw() string {
  	titleW = titleW - padGap - descW
  
  	for i := start; i < end; i++ {
@@ -76,7 +80,7 @@ index 20f22ac..ef864a5 100644
  		moveToTarget()
  
  		it := o.Items[i]
-@@ -759,9 +772,7 @@ func (o *Overlay) draw() string {
+@@ -759,9 +776,7 @@ func (o *Overlay) draw() string {
  	}
  
  	// bottom side border with footer shortcut hints
@@ -87,7 +91,7 @@ index 20f22ac..ef864a5 100644
  	moveToTarget()
  
  	footerInfo := ""
-@@ -781,13 +792,21 @@ func (o *Overlay) draw() string {
+@@ -781,13 +796,21 @@ func (o *Overlay) draw() string {
  	return s.String()
  }
  
