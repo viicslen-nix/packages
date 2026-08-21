@@ -260,6 +260,83 @@ index 0000000..f86af5b
 +		t.Error("trailing empty alternative should not match ctrl+n")
 +	}
 +}
+diff --git a/root/escseq.go b/root/escseq.go
+new file mode 100644
+index 0000000..9e0a9d8
+--- /dev/null
++++ b/root/escseq.go
+@@ -0,0 +1,37 @@
++package root
++
++// escSeqEnd returns the index just past the escape sequence starting at start.
++//
++// The whole sequence has to reach the shell in a single write. Writing it a
++// byte at a time races the reader's escape-timeout disambiguation: reedline
++// sees a lone Esc, then a literal '[', then a literal 'A', and types "[A" into
++// the buffer instead of decoding an arrow key.
++//
++// The three shapes that matter:
++//
++//	ESC [ params final   CSI  — final is a letter or '~', params are digits/';'
++//	ESC O final          SS3  — application cursor mode, always three bytes
++//	ESC x                any other two-byte form (alt+key)
++//
++// SS3 needs its own case: scanning for "first letter" would stop on the 'O'
++// and truncate the sequence, dropping the byte that says which key it was.
++func escSeqEnd(input []byte, start int) int {
++	if start+1 >= len(input) {
++		return len(input)
++	}
++
++	switch input[start+1] {
++	case '[':
++		for j := start + 2; j < len(input); j++ {
++			c := input[j]
++			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '~' {
++				return j + 1
++			}
++		}
++		return len(input)
++	case 'O':
++		return min(start+3, len(input))
++	default:
++		return start + 2
++	}
++}
+diff --git a/root/escseq_test.go b/root/escseq_test.go
+new file mode 100644
+index 0000000..60d0c27
+--- /dev/null
++++ b/root/escseq_test.go
+@@ -0,0 +1,28 @@
++package root
++
++import "testing"
++
++func TestEscSeqEnd(t *testing.T) {
++	for _, tc := range []struct {
++		name  string
++		input string
++		start int
++		want  int
++	}{
++		{"arrow up", "\x1b[A", 0, 3},
++		{"arrow down", "\x1b[B", 0, 3},
++		{"application-mode arrow", "\x1bOA", 0, 3},
++		{"home key ends on tilde", "\x1b[1~", 0, 4},
++		{"modified arrow with params", "\x1b[1;5A", 0, 6},
++		{"stops at the first final byte", "\x1b[Axyz", 0, 3},
++		{"sequence later in the buffer", "ab\x1b[B", 2, 5},
++		{"unterminated runs to end", "\x1b[1;", 0, 4},
++		{"lone escape", "\x1b", 0, 1},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			if got := escSeqEnd([]byte(tc.input), tc.start); got != tc.want {
++				t.Errorf("escSeqEnd(%q, %d) = %d, want %d", tc.input, tc.start, got, tc.want)
++			}
++		})
++	}
++}
 diff --git a/root/init.go b/root/init.go
 index 3916d30..d356cd9 100644
 --- a/root/init.go
@@ -430,7 +507,7 @@ index f6a1b29..42b9bf0 100644
  				shell = deepest
  			}
 diff --git a/root/wrapper.go b/root/wrapper.go
-index b0bee66..828f1ba 100644
+index b0bee66..5f9796d 100644
 --- a/root/wrapper.go
 +++ b/root/wrapper.go
 @@ -159,8 +159,10 @@ func runWrapper() {
@@ -446,6 +523,55 @@ index b0bee66..828f1ba 100644
  	} else {
  		shellName = detectShell()
  	}
+@@ -361,6 +363,7 @@ func runWrapper() {
+ 	// Moves the overlay cursor when visible, otherwise opens history/spec
+ 	// list and selects the next item in the requested direction.
+ 	handleNavKey := func(dir string) {
++		logger.Debugf("KEYDEBUG handleNavKey dir=%s overlayVisible=%v suggestionsEnabled=%v", dir, overlay.IsVisible(), suggestionsEnabled)
+ 		if overlay.IsVisible() {
+ 			intercepted = true
+ 			userNavigated.Store(true)
+@@ -864,6 +867,7 @@ func runWrapper() {
+ 
+ 				var isNavUp, isNavDown bool
+ 				var navConsumed int
++				logger.Debugf("KEYDEBUG main-path bytes=% x visible=%v", inputSlice[i:min(i+6, n)], overlay.IsVisible())
+ 				if isNavUp, navConsumed = config.MatchKey(inputSlice[i:], config.Get().Keybindings.NavigateUp); !isNavUp {
+ 					isNavDown, navConsumed = config.MatchKey(inputSlice[i:], config.Get().Keybindings.NavigateDown)
+ 				}
+@@ -1010,6 +1014,7 @@ func runWrapper() {
+ 					if !isNavUp {
+ 						isNavDown, navConsumed = config.MatchKey(inputSlice[i:], config.Get().Keybindings.NavigateDown)
+ 					}
++					logger.Debugf("KEYDEBUG esc-path bytes=% x up=%q down=%q isNavUp=%v isNavDown=%v visible=%v", inputSlice[i:min(i+6, n)], config.Get().Keybindings.NavigateUp, config.Get().Keybindings.NavigateDown, isNavUp, isNavDown, overlay.IsVisible())
+ 					if isNavUp || isNavDown {
+ 						intercepted = true
+ 						arrowDir := "down"
+@@ -1126,15 +1131,15 @@ func runWrapper() {
+ 							bufferMu.Unlock()
+ 						}
+ 
+-						_, _ = ptmx.Write([]byte{b})
+-						for j := i + 1; j < n; j++ {
+-							char := inputSlice[j]
+-							_, _ = ptmx.Write([]byte{char})
+-							i = j
+-							if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char == '~' {
+-								break
+-							}
+-						}
++						// Forward the sequence in a single write. Byte-at-a-time races
++						// the reader's escape-timeout disambiguation: reedline sees a
++						// lone Esc followed by literal "[A" and types it into the
++						// buffer instead of decoding an arrow. Only sequences iris does
++						// not itself handle reach here, so before any arrow was
++						// unbound this path was rarely hit.
++						seqEnd := escSeqEnd(inputSlice[:n], i)
++						_, _ = ptmx.Write(inputSlice[i:seqEnd])
++						i = seqEnd - 1
+ 					}
+ 					continue
+ 				}
 diff --git a/spec/system.go b/spec/system.go
 index 785fc03..8f0a800 100644
 --- a/spec/system.go
