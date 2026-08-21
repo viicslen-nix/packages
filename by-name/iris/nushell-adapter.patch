@@ -188,6 +188,78 @@ index d3b91d8..aee4894 100644
  	}
  
  	validChannels := map[string]bool{"stable": true, "nightly": true}
+diff --git a/internal/config/keys.go b/internal/config/keys.go
+index 01a81ca..69bc1d1 100644
+--- a/internal/config/keys.go
++++ b/internal/config/keys.go
+@@ -13,6 +13,22 @@ func MatchKey(input []byte, expected string) (matched bool, consumed int) {
+ 		return false, 0
+ 	}
+ 
++	// A binding may list alternatives, comma separated ("down,ctrl+n"), so one
++	// action stays reachable from more than one key -- needed when another tool
++	// owns the natural key and the fallback should not be the only way in.
++	if strings.Contains(expected, ",") {
++		for _, alt := range strings.Split(expected, ",") {
++			alt = strings.TrimSpace(alt)
++			if alt == "" {
++				continue
++			}
++			if matched, consumed = MatchKey(input, alt); matched {
++				return matched, consumed
++			}
++		}
++		return false, 0
++	}
++
+ 	expected = strings.ToLower(strings.TrimSpace(expected))
+ 	expected = strings.TrimPrefix(expected, "<")
+ 	expected = strings.TrimSuffix(expected, ">")
+diff --git a/internal/config/keys_multi_test.go b/internal/config/keys_multi_test.go
+new file mode 100644
+index 0000000..f86af5b
+--- /dev/null
++++ b/internal/config/keys_multi_test.go
+@@ -0,0 +1,39 @@
++package config
++
++import "testing"
++
++// A binding must be reachable from every key it lists: atuin owns `up`, so the
++// overlay is navigated with ctrl+p/ctrl+n, but `down` should keep working too.
++func TestMatchKeyAcceptsAlternatives(t *testing.T) {
++	const binding = "down,ctrl+n"
++
++	for _, tc := range []struct {
++		name     string
++		input    []byte
++		want     bool
++		consumed int
++	}{
++		{"arrow down", []byte("\x1b[B"), true, 3},
++		{"application-mode arrow down", []byte("\x1bOB"), true, 3},
++		{"ctrl+n", []byte{0x0e}, true, 1},
++		{"unrelated key", []byte{0x0f}, false, 0},
++		{"arrow up is not in the list", []byte("\x1b[A"), false, 0},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			got, consumed := MatchKey(tc.input, binding)
++			if got != tc.want || consumed != tc.consumed {
++				t.Errorf("MatchKey(%q, %q) = (%v, %d), want (%v, %d)",
++					tc.input, binding, got, consumed, tc.want, tc.consumed)
++			}
++		})
++	}
++
++	// a single key must behave exactly as before
++	if got, consumed := MatchKey([]byte{0x0e}, "ctrl+n"); !got || consumed != 1 {
++		t.Errorf("single-key binding regressed: (%v, %d)", got, consumed)
++	}
++	// an empty alternative must not match everything
++	if got, _ := MatchKey([]byte{0x0e}, "down,"); got {
++		t.Error("trailing empty alternative should not match ctrl+n")
++	}
++}
 diff --git a/root/init.go b/root/init.go
 index 3916d30..d356cd9 100644
 --- a/root/init.go
