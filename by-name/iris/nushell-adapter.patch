@@ -1,0 +1,376 @@
+diff --git a/integration/history.go b/integration/history.go
+index 06771c5..f368a68 100644
+--- a/integration/history.go
++++ b/integration/history.go
+@@ -141,6 +141,8 @@ func SearchHistory(query string, aliases map[string]string) ([]HistResult, error
+ 			histFile = filepath.Join(shell.GetZshConfigDir(), ".zsh_history")
+ 		case "fish":
+ 			histFile = filepath.Join(shell.GetFishDataDir(), "fish_history")
++		case "nu":
++			histFile = shell.GetNuHistoryFile()
+ 		default:
+ 			histFile = filepath.Join(home, ".bash_history")
+ 		}
+diff --git a/integration/shell/adapter.go b/integration/shell/adapter.go
+index 3da10be..0e62f4f 100644
+--- a/integration/shell/adapter.go
++++ b/integration/shell/adapter.go
+@@ -30,6 +30,8 @@ func Init(name string) {
+ 		Current = &ZshAdapter{}
+ 	case "fish":
+ 		Current = &FishAdapter{}
++	case "nu":
++		Current = &NuAdapter{}
+ 	default:
+ 		Current = &BashAdapter{}
+ 	}
+diff --git a/integration/shell/nu.go b/integration/shell/nu.go
+new file mode 100644
+index 0000000..f4b0265
+--- /dev/null
++++ b/integration/shell/nu.go
+@@ -0,0 +1,96 @@
++package shell
++
++import (
++	"fmt"
++	"maps"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// NuAdapter drives nushell. Unlike the zsh adapter there is no line-buffer
++// correction channel: reedline exposes no per-keystroke hook, so iris relies
++// entirely on its own keystroke-reconstructed buffer, the same way bash does.
++type NuAdapter struct{}
++
++func (n *NuAdapter) GetName() string      { return "nu" }
++func (n *NuAdapter) GetShellPath() string { return "nu" }
++
++func (n *NuAdapter) GetEnv(fd int, pid int) []string {
++	return append(os.Environ(), "IRIS_FD="+fmt.Sprint(fd), "IRIS_PID="+fmt.Sprint(pid))
++}
++
++// PrepareSelectSequence uses ctrl+u, which reedline binds to CutFromLineStart
++// with the same semantics readline and zle give it.
++func (n *NuAdapter) PrepareSelectSequence(selected string) []byte {
++	return append([]byte{0x15}, []byte(selected)...)
++}
++
++func (n *NuAdapter) ScanAliases() map[string]string {
++	dir := GetNuConfigDir()
++	return ScanNuAliases([]string{
++		filepath.Join(dir, "config.nu"),
++		filepath.Join(dir, "env.nu"),
++	})
++}
++
++func GetNuConfigDir() string {
++	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
++		return filepath.Join(xdg, "nushell")
++	}
++	home, _ := os.UserHomeDir()
++	return filepath.Join(home, ".config", "nushell")
++}
++
++// GetNuHistoryFile returns nushell's plain-text history. Users on the sqlite
++// backend (history.sqlite3) get nothing here; atuin-history covers that case.
++func GetNuHistoryFile() string {
++	return filepath.Join(GetNuConfigDir(), "history.txt")
++}
++
++func ScanNuAliases(files []string) map[string]string {
++	aliases := make(map[string]string)
++	home, err := os.UserHomeDir()
++	if err != nil {
++		return aliases
++	}
++
++	for _, f := range files {
++		path := f
++		if !filepath.IsAbs(f) {
++			path = filepath.Join(home, f)
++		}
++		data, err := os.ReadFile(path)
++		if err != nil {
++			continue
++		}
++
++		maps.Copy(aliases, ParseNuAliases(string(data)))
++	}
++	return aliases
++}
++
++// ParseNuAliases reads nushell's `alias name = command args` form. The POSIX
++// parser cannot handle it: the name is frequently quoted and `=` is its own
++// whitespace-delimited token rather than glued to the name.
++func ParseNuAliases(data string) map[string]string {
++	aliases := make(map[string]string)
++	for line := range strings.SplitSeq(data, "\n") {
++		line = strings.TrimSpace(line)
++		line = strings.TrimPrefix(line, "export ")
++		if !strings.HasPrefix(line, "alias ") {
++			continue
++		}
++		body := strings.TrimSpace(strings.TrimPrefix(line, "alias"))
++		name, val, ok := strings.Cut(body, "=")
++		if !ok {
++			continue
++		}
++		key := strings.Trim(strings.TrimSpace(name), "\"'`")
++		cmd := strings.TrimSpace(val)
++		if key != "" && cmd != "" {
++			aliases[key] = cmd
++		}
++	}
++	return aliases
++}
+diff --git a/integration/shell/nu_test.go b/integration/shell/nu_test.go
+new file mode 100644
+index 0000000..6af41b7
+--- /dev/null
++++ b/integration/shell/nu_test.go
+@@ -0,0 +1,40 @@
++package shell
++
++import "testing"
++
++func TestParseNuAliases(t *testing.T) {
++	// the quoted-name, spaced-equals form home-manager and `alias` both emit
++	got := ParseNuAliases(`
++alias "art" = vendor/bin/sail artisan
++alias cat = bat
++export alias k = kubectl
++alias  spaced   =   dev-shell laravel
++# alias commented = nope
++alias broken
++not an alias line
++`)
++
++	want := map[string]string{
++		"art":    "vendor/bin/sail artisan",
++		"cat":    "bat",
++		"k":      "kubectl",
++		"spaced": "dev-shell laravel",
++	}
++
++	if len(got) != len(want) {
++		t.Fatalf("got %d aliases %v, want %d", len(got), got, len(want))
++	}
++	for k, v := range want {
++		if got[k] != v {
++			t.Errorf("alias %q = %q, want %q", k, got[k], v)
++		}
++	}
++}
++
++// the posix parser must not silently half-parse nu syntax — that was the bug
++// that made a NuAdapter look like it worked while every alias went missing
++func TestPosixParserCannotReadNuAliases(t *testing.T) {
++	if got := ParseAliases(`alias "art" = vendor/bin/sail artisan`); len(got) != 0 {
++		t.Fatalf("posix parser unexpectedly parsed nu syntax: %v", got)
++	}
++}
+diff --git a/internal/config/config.go b/internal/config/config.go
+index d3b91d8..aee4894 100644
+--- a/internal/config/config.go
++++ b/internal/config/config.go
+@@ -277,9 +277,9 @@ func validate(cfg *Config) error {
+ 		return fmt.Errorf("core.mode: invalid value %q (want: last|spec|history)", cfg.Core.Mode)
+ 	}
+ 
+-	validShells := map[string]bool{"": true, "bash": true, "zsh": true, "fish": true}
++	validShells := map[string]bool{"": true, "bash": true, "zsh": true, "fish": true, "nu": true}
+ 	if !validShells[cfg.Core.Shell] {
+-		return fmt.Errorf("core.shell: invalid value %q (want: bash|zsh|fish)", cfg.Core.Shell)
++		return fmt.Errorf("core.shell: invalid value %q (want: bash|zsh|fish|nu)", cfg.Core.Shell)
+ 	}
+ 
+ 	validChannels := map[string]bool{"stable": true, "nightly": true}
+diff --git a/root/init.go b/root/init.go
+index 3916d30..d356cd9 100644
+--- a/root/init.go
++++ b/root/init.go
+@@ -12,12 +12,12 @@ import (
+ )
+ 
+ var initCmd = &cobra.Command{
+-	Use:   "init [bash|zsh|fish]",
++	Use:   "init [bash|zsh|fish|nu]",
+ 	Short: "Generate the autostart script for your shell",
+ 	Long: `Add the output of this command to your shell's configuration file to start Iris automatically.
+ For example, add this to your ~/.zshrc:
+   eval "$(iris init zsh)"`,
+-	ValidArgs: []string{"bash", "zsh", "fish"},
++	ValidArgs: []string{"bash", "zsh", "fish", "nu"},
+ 	Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+ 	Run: func(cmd *cobra.Command, args []string) {
+ 		shell := args[0]
+@@ -97,6 +97,8 @@ if [ -n "$IRIS_PID" ] && [ -n "$IRIS_FD" ]; then
+ fi
+ 
+ `)
++		case "nu":
++			fmt.Print(nuInitScript)
+ 		case "fish":
+ 			fmt.Printf(`
+ # Iris Autostart Hook
+@@ -189,13 +191,28 @@ var setupCmd = &cobra.Command{
+ 		case "fish":
+ 			configFile = filepath.Join(shell.GetFishConfigDir(), "config.fish")
+ 			evalCmd = `iris init fish | source`
++		case "nu":
++			// nushell has no eval and `source` needs a parse-time constant path,
++			// so the hook is written out once and sourced from a fixed location
++			nuDir := shell.GetNuConfigDir()
++			initFile := filepath.Join(nuDir, "iris-init.nu")
++			if mkErr := os.MkdirAll(nuDir, 0755); mkErr != nil {
++				fmt.Printf("Failed to create %s: %v\n", nuDir, mkErr)
++				return
++			}
++			if wErr := os.WriteFile(initFile, []byte(nuInitScript), 0644); wErr != nil {
++				fmt.Printf("Failed to write %s: %v\n", initFile, wErr)
++				return
++			}
++			configFile = filepath.Join(nuDir, "config.nu")
++			evalCmd = "source " + initFile
+ 		default:
+ 			fmt.Printf("Unsupported shell: %s. Please add iris init manually.\n", shellName)
+ 			return
+ 		}
+ 
+ 		content, readErr := os.ReadFile(configFile)
+-		if strings.Contains(string(content), "iris init") {
++		if strings.Contains(string(content), "iris init") || strings.Contains(string(content), "iris-init.nu") {
+ 			fmt.Printf("Iris is already configured in %s\n", configFile)
+ 		} else {
+ 			var newContent string
+diff --git a/root/init_nu.go b/root/init_nu.go
+new file mode 100644
+index 0000000..858a5ab
+--- /dev/null
++++ b/root/init_nu.go
+@@ -0,0 +1,58 @@
++package root
++
++// nuInitScript is nushell's autostart + IPC hook.
++//
++// Two things differ from the posix shells. Nushell has no `eval`, so the
++// script cannot be piped into the shell from the rc file — it has to be saved
++// and `source`d from a path known at parse time. And nushell cannot redirect
++// to a numbered fd, so the pipe iris passes as IRIS_FD is reached through
++// /proc/self/fd instead (Linux only; the posix hooks use >&$IRIS_FD).
++const nuInitScript = `
++# Iris Autostart Hook
++# a multiplexer pane inherits IRIS_* but runs on its own tty, so those vars
++# point at an iris that is not driving this terminal
++if "IRIS_PID" in $env {
++    let iris_ppid = (try { ^ps -o ppid= -p $nu.pid | str trim } catch { "" })
++    let iris_cur_tty = (try { ^tty | str trim } catch { "" })
++    if $env.IRIS_PID != $iris_ppid and $iris_cur_tty != ($env.IRIS_TTY? | default "") {
++        hide-env --ignore-errors IRIS_PID IRIS_IS_CHILD IRIS_FD IRIS_TTY
++    }
++}
++
++# a non-interactive shell (tool runners sourcing config, scripts) has no prompt
++# to complete, and exec'ing here would seize the tty from the real iris
++if $nu.is-interactive and ("IRIS_PID" not-in $env) and ("IRIS_RESCUE" not-in $env) {
++    if (which iris | is-not-empty) {
++        $env.IRIS_ACTIVE_SHELL = "nu"
++        exec iris
++    }
++}
++
++# Iris Autocomplete Hook
++def _iris_send [msg: string] {
++    let fd = ($env.IRIS_FD? | default "")
++    if $fd != "" {
++        try { $"($msg)(char --integer 0)" | save --raw --append $"/proc/self/fd/($fd)" }
++    }
++}
++
++if ("IRIS_PID" in $env) and ("IRIS_FD" in $env) {
++    $env.config = ($env.config? | default {})
++    $env.config.hooks = ($env.config.hooks? | default {})
++    $env.config.hooks.pre_prompt = (
++        $env.config.hooks.pre_prompt?
++        | default []
++        | append {||
++            _iris_send $"IRIS_CWD:($env.PWD)"
++            _iris_send $"IRIS_CMD_STOP:($env.LAST_EXIT_CODE? | default 0)"
++        }
++    )
++    $env.config.hooks.pre_execution = (
++        $env.config.hooks.pre_execution?
++        | default []
++        | append {||
++            _iris_send "IRIS_CMD_START"
++        }
++    )
++}
++`
+diff --git a/root/root.go b/root/root.go
+index 8d9ad02..c505144 100644
+--- a/root/root.go
++++ b/root/root.go
+@@ -56,7 +56,7 @@ It works exactly like coding editor suggestion menu drop down.`,
+ )
+ 
+ func init() {
+-	rootCmd.PersistentFlags().StringVarP(&shellFlag, "shell", "s", "", "shell to use (bash, zsh, fish)")
++	rootCmd.PersistentFlags().StringVarP(&shellFlag, "shell", "s", "", "shell to use (bash, zsh, fish, nu)")
+ 	rootCmd.PersistentFlags().BoolVar(&shellLoginFlag, "shell-login", false, "run the selected shell as a login shell")
+ 	rootCmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "enable debug logging to iris.log")
+ 
+diff --git a/root/shell.go b/root/shell.go
+index f6a1b29..42b9bf0 100644
+--- a/root/shell.go
++++ b/root/shell.go
+@@ -30,6 +30,9 @@ func detectShell() string {
+ 			if strings.Contains(comm, "fish") {
+ 				return "fish"
+ 			}
++			if comm == "nu" || strings.Contains(comm, "nushell") {
++				return "nu"
++			}
+ 		}
+ 
+ 		data, err = os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+@@ -52,6 +55,9 @@ func detectShell() string {
+ 	if strings.Contains(s, "zsh") {
+ 		return "zsh"
+ 	}
++	if strings.HasSuffix(s, "/nu") || strings.Contains(s, "nushell") {
++		return "nu"
++	}
+ 	return "bash"
+ }
+ 
+@@ -89,6 +95,9 @@ func getActiveInnerShell(rootPid int, defaultShell string) string {
+ 			if strings.Contains(child.comm, "fish") {
+ 				childShell = "fish"
+ 			}
++			if child.comm == "nu" || strings.Contains(child.comm, "nushell") {
++				childShell = "nu"
++			}
+ 			if deepest := findDeepest(child.pid, childShell); deepest != "" {
+ 				shell = deepest
+ 			}
+diff --git a/root/wrapper.go b/root/wrapper.go
+index b0bee66..828f1ba 100644
+--- a/root/wrapper.go
++++ b/root/wrapper.go
+@@ -159,8 +159,10 @@ func runWrapper() {
+ 	if active := os.Getenv("IRIS_ACTIVE_SHELL"); active != "" {
+ 		shellName = active
+ 		_ = os.Unsetenv("IRIS_ACTIVE_SHELL")
+-	} else if shellFlag != "" {
+-		shellName = shellFlag
++	} else if cfgShell := config.Get().Core.Shell; cfgShell != "" {
++		// root.go merges --shell into the config, so this one read covers the
++		// flag, core.shell in config.toml, and IRIS_SHELL
++		shellName = cfgShell
+ 	} else {
+ 		shellName = detectShell()
+ 	}
