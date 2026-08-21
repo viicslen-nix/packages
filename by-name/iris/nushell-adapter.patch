@@ -507,7 +507,7 @@ index f6a1b29..42b9bf0 100644
  				shell = deepest
  			}
 diff --git a/root/wrapper.go b/root/wrapper.go
-index b0bee66..5f9796d 100644
+index b0bee66..65af8f8 100644
 --- a/root/wrapper.go
 +++ b/root/wrapper.go
 @@ -159,8 +159,10 @@ func runWrapper() {
@@ -523,31 +523,58 @@ index b0bee66..5f9796d 100644
  	} else {
  		shellName = detectShell()
  	}
-@@ -361,6 +363,7 @@ func runWrapper() {
+@@ -360,7 +362,7 @@ func runWrapper() {
+ 	// Shared handler for configured navigation keys (e.g. ctrl+j / ctrl+k).
  	// Moves the overlay cursor when visible, otherwise opens history/spec
  	// list and selects the next item in the requested direction.
- 	handleNavKey := func(dir string) {
-+		logger.Debugf("KEYDEBUG handleNavKey dir=%s overlayVisible=%v suggestionsEnabled=%v", dir, overlay.IsVisible(), suggestionsEnabled)
+-	handleNavKey := func(dir string) {
++	handleNavKey := func(dir string, raw []byte) {
  		if overlay.IsVisible() {
  			intercepted = true
  			userNavigated.Store(true)
-@@ -864,6 +867,7 @@ func runWrapper() {
+@@ -401,6 +403,23 @@ func runWrapper() {
+ 		} else if suggestionsEnabled {
+ 			// hidden-overlay history navigation only when suggestions are enabled;
+ 			// otherwise let the navigation keys pass through to the shell
++
++			// On an empty prompt outside history mode there is no history to
++			// navigate: MergeResults falls back to the top-level command list and
++			// pastes an arbitrary binary over the line. Up on an empty prompt is
++			// the universal "recall last command" gesture -- leave it to the shell,
++			// which is also where atuin and reedline bind it.
++			bufferMu.Lock()
++			bufEmpty := naiveBuffer == ""
++			bufferMu.Unlock()
++			activeModeMu.RLock()
++			modeNow := activeMode
++			activeModeMu.RUnlock()
++			if bufEmpty && modeNow != "history" {
++				_, _ = ptmx.Write(raw)
++				return
++			}
++
+ 			intercepted = true
+ 			userNavigated.Store(true)
  
- 				var isNavUp, isNavDown bool
- 				var navConsumed int
-+				logger.Debugf("KEYDEBUG main-path bytes=% x visible=%v", inputSlice[i:min(i+6, n)], overlay.IsVisible())
- 				if isNavUp, navConsumed = config.MatchKey(inputSlice[i:], config.Get().Keybindings.NavigateUp); !isNavUp {
- 					isNavDown, navConsumed = config.MatchKey(inputSlice[i:], config.Get().Keybindings.NavigateDown)
- 				}
-@@ -1010,6 +1014,7 @@ func runWrapper() {
- 					if !isNavUp {
- 						isNavDown, navConsumed = config.MatchKey(inputSlice[i:], config.Get().Keybindings.NavigateDown)
+@@ -873,7 +892,7 @@ func runWrapper() {
+ 					if isNavUp {
+ 						arrowDir = "up"
  					}
-+					logger.Debugf("KEYDEBUG esc-path bytes=% x up=%q down=%q isNavUp=%v isNavDown=%v visible=%v", inputSlice[i:min(i+6, n)], config.Get().Keybindings.NavigateUp, config.Get().Keybindings.NavigateDown, isNavUp, isNavDown, overlay.IsVisible())
- 					if isNavUp || isNavDown {
- 						intercepted = true
- 						arrowDir := "down"
-@@ -1126,15 +1131,15 @@ func runWrapper() {
+-					handleNavKey(arrowDir)
++					handleNavKey(arrowDir, inputSlice[i:i+navConsumed])
+ 					i += navConsumed - 1
+ 					continue
+ 				}
+@@ -1016,7 +1035,7 @@ func runWrapper() {
+ 						if isNavUp {
+ 							arrowDir = "up"
+ 						}
+-						handleNavKey(arrowDir)
++						handleNavKey(arrowDir, inputSlice[i:i+navConsumed])
+ 						i += navConsumed - 1
+ 						continue
+ 					}
+@@ -1126,15 +1145,15 @@ func runWrapper() {
  							bufferMu.Unlock()
  						}
  
