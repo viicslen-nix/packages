@@ -6,7 +6,8 @@
 packages:
   @./scripts/packages.sh list
 
-# Compare each GitHub-sourced package against the latest release upstream
+# Compare each package against the latest version upstream (GitHub releases,
+# npm, PyPI, or the vendor's own endpoint)
 # Read-only: no downloads, no file edits — feed the results to `just bump <attr>`
 outdated:
   @./scripts/packages.sh outdated

@@ -37,6 +37,28 @@ list() {
   while read -r f; do attr_of "$f"; done < <(package_files)
 }
 
+# Newest version of a package with no git forge behind it, or nothing. Each
+# upstream publishes its own "what's current" endpoint; dispatch on the src.
+latest_other() {
+  local f=$1 attr=$2 name
+  case $attr in
+    vivaldi-*)
+      vivaldi_latest "${attr#vivaldi-}"
+      return
+      ;;
+  esac
+  name=$(sed -n 's|.*registry\.npmjs\.org/\(.*\)/-/.*|\1|p' "$f" | head -1)
+  if [[ -n $name ]]; then
+    curl -fsSL "https://registry.npmjs.org/$name/latest" | jq -r '.version // empty'
+  elif grep -q fetchPypi "$f"; then
+    name=$(sed -n 's/.*pname = "\([^"]*\)".*/\1/p' "$f" | head -1)
+    curl -fsSL "https://pypi.org/pypi/$name/json" | jq -r '.info.version // empty'
+  elif grep -q 'cli\.coderabbit\.ai' "$f"; then
+    # ponytail: matched by host; generalise only if a second vendor CDN turns up
+    curl -fsSL https://cli.coderabbit.ai/releases/latest/VERSION | tr -d '[:space:]'
+  fi
+}
+
 # Read-only: no downloads, no file edits — feed the results to `bump <attr>`
 outdated() {
   local f attr owner repo current tag prefix latest mark other=()
@@ -49,21 +71,24 @@ outdated() {
     if [[ -z $owner || -z $repo ]]; then
       read -r owner repo < <(sed -n 's|.*github\.com/\([^/"]*\)/\([^/"]*\)/releases/download.*|\1 \2|p' "$f" | head -1) || true
     fi
-    if [[ -z $owner || -z $repo ]]; then other+=("$attr"); continue; fi
-
     current=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' "$f" | head -1)
 
-    # tag template -> release-tag prefix ("cli-v${version}" -> "cli-v"); ignore pinned revs
-    tag=$(sed -n -e 's|.*releases/download/\([^/]*\)/.*|\1|p' -e 's/.*\(rev\|tag\) = "\([^"]*\)".*/\2/p' "$f" | head -1)
-    if [[ $tag =~ ^[0-9a-f]{40}$ ]]; then tag=''; fi
-    prefix=${tag%%[0-9$]*}
+    if [[ -z $owner || -z $repo ]]; then
+      latest=$(latest_other "$f" "$attr") || latest=''
+      if [[ -z $latest ]]; then other+=("$attr"); continue; fi
+    else
+      # tag template -> release-tag prefix ("cli-v${version}" -> "cli-v"); ignore pinned revs
+      tag=$(sed -n -e 's|.*releases/download/\([^/]*\)/.*|\1|p' -e 's/.*\(rev\|tag\) = "\([^"]*\)".*/\2/p' "$f" | head -1)
+      if [[ $tag =~ ^[0-9a-f]{40}$ ]]; then tag=''; fi
+      prefix=${tag%%[0-9$]*}
 
-    # newest tag with that prefix followed by a digit; stable preferred, prerelease as fallback
-    latest=$(gh api "repos/$owner/$repo/releases?per_page=50" --jq "
-      (\"$prefix\") as \$p
-      | [.[] | select(.tag_name | startswith(\$p)) | select(.tag_name[(\$p | length):] | test(\"^[0-9]\"))] as \$c
-      | (([\$c[] | select(.prerelease == false)] | .[0]) // \$c[0]).tag_name // \"-\"" 2>/dev/null) || latest='?'
-    latest=${latest#"$prefix"}
+      # newest tag with that prefix followed by a digit; stable preferred, prerelease as fallback
+      latest=$(gh api "repos/$owner/$repo/releases?per_page=50" --jq "
+        (\"$prefix\") as \$p
+        | [.[] | select(.tag_name | startswith(\$p)) | select(.tag_name[(\$p | length):] | test(\"^[0-9]\"))] as \$c
+        | (([\$c[] | select(.prerelease == false)] | .[0]) // \$c[0]).tag_name // \"-\"" 2>/dev/null) || latest='?'
+      latest=${latest#"$prefix"}
+    fi
 
     # only flag a real forward move (upstream's newest stable can be behind a pinned prerelease)
     mark=''
@@ -74,7 +99,7 @@ outdated() {
     printf '%-24s %-14s %-14s%s\n' "$attr" "$current" "$latest" "$mark"
   done < <(package_files ! -path 'by-name/scripts/*')
   # ponytail: '-' means the repo publishes no matching release (rev-pinned or tagless)
-  [[ ${#other[@]} -eq 0 ]] || printf 'not GitHub-sourced: %s\n' "${other[*]}"
+  [[ ${#other[@]} -eq 0 ]] || printf 'no upstream resolver: %s\n' "${other[*]}"
 }
 
 # Newest build of a vivaldi channel, from Vivaldi's apt index (it lists both
