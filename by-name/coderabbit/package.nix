@@ -7,18 +7,18 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "coderabbit";
-  version = "0.4.4";
+  version = "0.7.5";
 
   src = fetchurl (
     if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64
     then {
       url = "https://cli.coderabbit.ai/releases/${finalAttrs.version}/coderabbit-linux-x64.zip";
-      hash = "sha256-BBZbcglgXN6pMhHXlJw+RKraizCS+2zoBPm5aVqzgnM=";
+      hash = "sha256-C0fLTedRiMAYTykNjWgYp5OpUo6Pec9mDGpl8iWwRcE=";
     }
     else if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64
     then {
       url = "https://cli.coderabbit.ai/releases/${finalAttrs.version}/coderabbit-linux-arm64.zip";
-      hash = "sha256-m3fnx8xKbKaYD8OI8I4HNNHCPgPeZbyKkC3nvq83CdY=";
+      hash = "sha256-WW+Vf2e3ugeSUSfFJTDikWMRd9jcug86Zt61WppbBuk=";
     }
     else throw "Unsupported platform: ${stdenv.hostPlatform.system}"
   );

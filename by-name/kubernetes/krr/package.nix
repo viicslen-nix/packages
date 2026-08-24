@@ -31,14 +31,14 @@
 in
   pythonPackages.buildPythonApplication rec {
     pname = "krr";
-    version = "1.29.0";
+    version = "1.30.0";
     pyproject = true;
 
     src = fetchFromGitHub {
       owner = "robusta-dev";
       repo = "krr";
       tag = "v${version}";
-      hash = "sha256-nf5z1dBVcQF/Zv79EnTzQeH6NsB3fhOUqkfgv5U4Ofo=";
+      hash = "sha256-uDF5LwQF4uFiUcB277D/0/SSWtqshphIbE4Zyt3+KEM=";
     };
 
     postPatch = ''
