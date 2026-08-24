@@ -2,6 +2,9 @@
   lib,
   vivaldi,
   fetchurl,
+  # forwarded so `vivaldi.override` keeps working through callPackage
+  proprietaryCodecs ? false,
+  enableWidevine ? false,
 }: let
   version = "8.2.4133.24";
   versionShort = lib.versions.majorMinor version;
@@ -12,12 +15,12 @@
     then "opt/vivaldi-snapshot"
     else "opt/vivaldi";
 in
-  vivaldi.overrideAttrs (oldAttrs: {
+  (vivaldi.override {inherit proprietaryCodecs enableWidevine;}).overrideAttrs (oldAttrs: {
     inherit version;
 
     src = fetchurl {
       url = "https://downloads.vivaldi.com/${channel}/vivaldi-${channel}_${version}-1_amd64.deb";
-      hash = "sha256-UNkRdTyq1TjkKi0DbtfOtdBZAVGA0pOkZ0V5jmW921g=";
+      hash = "sha256-M7YOD+QZB7J3XWR3PmQ8UsKnQA2dzqzuzwPNVNT4aWY=";
     };
 
     passthru =
