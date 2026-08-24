@@ -12,31 +12,33 @@ index 06771c5..f368a68 100644
  			histFile = filepath.Join(home, ".bash_history")
  		}
 diff --git a/integration/overlay.go b/integration/overlay.go
-index 20f22ac..3a437a1 100644
+index 20f22ac..0f6063d 100644
 --- a/integration/overlay.go
 +++ b/integration/overlay.go
-@@ -578,6 +578,14 @@ func (o *Overlay) draw() string {
+@@ -576,7 +576,13 @@ func (o *Overlay) draw() string {
  
- 	windowSize := min(len(o.Items), maxItems)
+ 	s.WriteString(ansi.SaveCursor)
  
-+	// Decide the side from the largest box that could be shown, not the one
-+	// being drawn now. Suggestion lists shrink as you type, and deciding from
-+	// the current size makes a box that did not fit below suddenly fit, so it
-+	// leaps across the prompt mid-keystroke. A stable side beats a snug fit.
-+	place := planPlacement(maxItems)
-+	windowSize = min(windowSize, place.rows)
-+	setLastPlacement(place)
-+
+-	windowSize := min(len(o.Items), maxItems)
++	// The box only ever goes below the cursor: the rows above hold the previous
++	// command's output, and painting over them destroys it. Whatever room
++	// exists down there was reserved by the shell's pre_prompt hook.
++	windowSize := min(len(o.Items), maxItems, planPlacement(maxItems))
++	if windowSize < 1 {
++		return "" // no room; ghost text still shows the top hit
++	}
+ 
  	scrolloffUp := 1
  	if windowSize <= 3 {
- 		scrolloffUp = 0
-@@ -603,11 +611,24 @@ func (o *Overlay) draw() string {
- 	end := start + windowSize
- 	totalLines := windowSize + 2
+@@ -601,13 +607,21 @@ func (o *Overlay) draw() string {
  
+ 	start := o.StartIdx
+ 	end := start + windowSize
+-	totalLines := windowSize + 2
+-
 -	s.WriteString(strings.Repeat("\n", totalLines))
 -	s.WriteString(ansi.CursorUp(totalLines))
--
+ 
 +	// Deliberately no newlines here to make room: printing them scrolls the
 +	// viewport, and the shell's line editor caches the prompt origin, so it
 +	// repaints at the stale row and stacks a copy of the prompt and the box on
@@ -44,21 +46,17 @@ index 20f22ac..3a437a1 100644
 +	// space that exists, and place.above says which side of the cursor it goes.
  	s.WriteString(ansi.SaveCursor)
  
-+	// k counts box rows from the top: 1 = top border, totalLines = bottom.
++	// k counts box rows from the top: 1 = top border, windowSize+2 = bottom.
 +	rowAt := func(k int) {
 +		s.WriteString(ansi.RestoreCursor)
-+		if place.above {
-+			s.WriteString(ansi.CursorUp(place.skip + totalLines - k))
-+		} else {
-+			s.WriteString(ansi.CursorDown(k))
-+		}
++		s.WriteString(ansi.CursorDown(k))
 +		s.WriteString(ansi.EraseEntireLine)
 +	}
 +
  	moveToTarget := func() {
  		s.WriteString("\r")
  		if targetCol > 0 {
-@@ -621,9 +642,7 @@ func (o *Overlay) draw() string {
+@@ -621,9 +635,7 @@ func (o *Overlay) draw() string {
  	isClassic := style == "classic" || style == "minimal" || style == "minimalist"
  
  	// top side border with scroll counter
@@ -69,7 +67,7 @@ index 20f22ac..3a437a1 100644
  	moveToTarget()
  
  	scrollInfo := ""
-@@ -652,9 +671,7 @@ func (o *Overlay) draw() string {
+@@ -652,9 +664,7 @@ func (o *Overlay) draw() string {
  	titleW = titleW - padGap - descW
  
  	for i := start; i < end; i++ {
@@ -80,7 +78,7 @@ index 20f22ac..3a437a1 100644
  		moveToTarget()
  
  		it := o.Items[i]
-@@ -759,9 +776,7 @@ func (o *Overlay) draw() string {
+@@ -759,9 +769,7 @@ func (o *Overlay) draw() string {
  	}
  
  	// bottom side border with footer shortcut hints
@@ -91,31 +89,28 @@ index 20f22ac..3a437a1 100644
  	moveToTarget()
  
  	footerInfo := ""
-@@ -781,13 +796,21 @@ func (o *Overlay) draw() string {
+@@ -781,8 +789,9 @@ func (o *Overlay) draw() string {
  	return s.String()
  }
  
 -// clearLinesBelow erases n lines below the cursor, leaving the cursor where
 -// it started. Caller is responsible for wrapping/resetting auto-wrap mode.
 +// clearLinesBelow erases the n lines the box occupies, leaving the cursor
-+// where it started. The box is drawn above the cursor when there was no room
-+// below it, so the clear has to follow the same side or it erases blank rows
-+// and leaves the box on screen. Caller is responsible for wrapping/resetting
-+// auto-wrap mode.
++// where it started. Caller is responsible for wrapping/resetting auto-wrap
++// mode.
  func clearLinesBelow(s *strings.Builder, n int) {
-+	above, skip := drewAbove()
  	s.WriteString(ansi.SaveCursor)
  	for i := range n {
- 		s.WriteString(ansi.RestoreCursor)
--		s.WriteString(ansi.CursorDown(i + 1))
-+		if above {
-+			s.WriteString(ansi.CursorUp(skip + i))
-+		} else {
-+			s.WriteString(ansi.CursorDown(i + 1))
-+		}
- 		s.WriteString("\r" + ansi.EraseEntireLine)
- 	}
- 	s.WriteString(ansi.RestoreCursor)
+@@ -863,3 +872,9 @@ func (o *Overlay) ClearAndDisable() string {
+ 	s.WriteString(ansi.SetModeAutoWrap)
+ 	return s.String()
+ }
++
++// OverlayRows is how many terminal rows a full box occupies: the item window
++// plus the two borders. The shell's pre_prompt hook needs the number to know
++// how much room to reserve below the prompt, and it lives in a different
++// package, so it is passed through the environment rather than duplicated.
++func OverlayRows() int { return maxItems + 2 }
 diff --git a/integration/shell/adapter.go b/integration/shell/adapter.go
 index 3da10be..0e62f4f 100644
 --- a/integration/shell/adapter.go
@@ -279,10 +274,10 @@ index 0000000..6af41b7
 +}
 diff --git a/integration/viewport.go b/integration/viewport.go
 new file mode 100644
-index 0000000..6c92ba2
+index 0000000..29953e8
 --- /dev/null
 +++ b/integration/viewport.go
-@@ -0,0 +1,173 @@
+@@ -0,0 +1,84 @@
 +package integration
 +
 +import (
@@ -292,18 +287,20 @@ index 0000000..6c92ba2
 +	"golang.org/x/term"
 +)
 +
-+// The overlay is drawn relative to the cursor, so it needs to know how much
-+// room the cursor actually has. Making room by printing newlines scrolls the
-+// viewport, and the shell's line editor caches the prompt's absolute origin:
-+// reedline then repaints at the stale row and leaves a copy of the prompt and
-+// the overlay behind on every keystroke. Nothing may scroll, so the overlay
-+// has to fit in the space that already exists -- below the cursor when there
-+// is room, above it otherwise.
++// The overlay is drawn below the cursor, and only there. Making room by
++// printing newlines from here would scroll the viewport, and the shell's line
++// editor caches the prompt's absolute origin: reedline then repaints at the
++// stale row and leaves a copy of the prompt and the overlay behind on every
++// keystroke. Drawing above the cursor instead is worse -- those rows hold the
++// previous command's output, and painting over them destroys it.
++//
++// So the room is made before the prompt exists: the nushell pre_prompt hook
++// scrolls the viewport itself (see nuInitScript), which reedline then measures
++// as its origin. This file only has to fit the box into whatever room the
++// cursor ended up with.
 +var (
 +	viewportMu  sync.RWMutex
 +	cursorRow   = -1 // 0-based row of the cursor; -1 when unknown
-+	promptRow   = -1 // 0-based row the prompt block starts on
-+	promptLines = 1  // learned height of the prompt block
 +	viewportSet bool
 +)
 +
@@ -314,44 +311,6 @@ index 0000000..6c92ba2
 +	defer viewportMu.Unlock()
 +	cursorRow = row
 +	viewportSet = row >= 0
-+}
-+
-+// SetPromptRow records where the prompt block begins, measured just before the
-+// shell draws it. Prompts are often more than one line (starship draws three),
-+// and those rows belong to the prompt -- drawing the overlay into them
-+// overwrites it.
-+//
-+// The measurement is only trustworthy when the prompt had room to print
-+// without scrolling. At the bottom of the screen printing the prompt scrolls
-+// the viewport, so the row measured beforehand is stale by exactly the
-+// prompt's height -- which is the one case the overlay needs it for. So the
-+// height is learned from measurements taken higher up the screen and reused.
-+func SetPromptRow(row int) {
-+	viewportMu.Lock()
-+	defer viewportMu.Unlock()
-+	promptRow = row
-+}
-+
-+// LearnPromptHeight is called once the cursor row is known for this prompt. It
-+// only believes measurements that cannot have been distorted by a scroll.
-+func LearnPromptHeight() {
-+	viewportMu.Lock()
-+	defer viewportMu.Unlock()
-+	if promptRow < 0 || cursorRow < promptRow {
-+		return
-+	}
-+	if promptRow >= termHeight()-1 {
-+		return // printing the prompt scrolled; the measurement is stale
-+	}
-+	if h := cursorRow - promptRow + 1; h >= 1 && h <= 10 {
-+		promptLines = h
-+	}
-+}
-+
-+func PromptRowKnown() bool {
-+	viewportMu.RLock()
-+	defer viewportMu.RUnlock()
-+	return promptRow >= 0
 +}
 +
 +// CursorRow returns the last measured cursor row, or -1.
@@ -383,158 +342,100 @@ index 0000000..6c92ba2
 +	return h
 +}
 +
-+// placement says where a box of `want` content rows plus two border rows can
-+// go relative to the cursor, and how many content rows actually fit.
-+type placement struct {
-+	above bool
-+	rows  int
-+	skip  int // rows to step over (the prompt block) before drawing upwards
-+}
-+
-+func planPlacement(want int) placement {
-+	viewportMu.RLock()
-+	row, lines := cursorRow, promptLines
-+	viewportMu.RUnlock()
-+	return planPlacementFor(row, lines, termHeight(), want)
++// planPlacement reports how many content rows of a `want`-row box actually fit
++// below the cursor. 0 means there is no room for a box at all.
++func planPlacement(want int) int {
++	return planPlacementFor(getCursorRow(), termHeight(), want)
 +}
 +
 +// planPlacementFor is the arithmetic on its own, so it can be tested without a
 +// terminal attached.
-+func planPlacementFor(row, lines, height, want int) placement {
-+	var pRow int
-+
++func planPlacementFor(row, height, want int) int {
 +	if row < 0 {
-+		// Unknown position: keep the historical downwards behaviour.
-+		return placement{above: false, rows: want}
++		// Unknown position: keep the historical behaviour and assume room.
++		return want
 +	}
-+
-+	need := want + 2
 +	below := height - 1 - row // rows strictly beneath the cursor
-+	if below >= need {
-+		return placement{above: false, rows: want}
++	// Two of them go to the borders. A box with no content row is just noise.
++	if below-2 < 1 {
++		return 0
 +	}
-+
-+	// Going up means clearing the prompt block first: the box has to end on
-+	// the row above where the prompt starts, not above the cursor.
-+	// Derive the block start from the learned height rather than the measured
-+	// row: at the bottom of the screen the measurement predates the scroll the
-+	// prompt itself caused.
-+	pRow = row - (lines - 1)
-+	if pRow < 0 {
-+		pRow = 0
-+	}
-+	skip := row - pRow + 1 // rows from the cursor up to just above the prompt
-+	above := pRow
-+	if above >= need {
-+		return placement{above: true, rows: want, skip: skip}
-+	}
-+
-+	// Neither side fits the full box; use the roomier one, shrunk to fit.
-+	if above > below {
-+		return placement{above: true, rows: max(above-2, 1), skip: skip}
-+	}
-+	return placement{above: false, rows: max(below-2, 1)}
-+}
-+
-+// The clear path has to erase the rows the box was actually drawn on, so the
-+// renderer records the side it chose.
-+var (
-+	lastAboveMu sync.RWMutex
-+	lastAbove   bool
-+	lastSkip    int
-+)
-+
-+func setLastPlacement(p placement) {
-+	lastAboveMu.Lock()
-+	defer lastAboveMu.Unlock()
-+	lastAbove = p.above
-+	lastSkip = p.skip
-+}
-+
-+func drewAbove() (bool, int) {
-+	lastAboveMu.RLock()
-+	defer lastAboveMu.RUnlock()
-+	return lastAbove, lastSkip
++	return min(want, below-2)
 +}
 diff --git a/integration/viewport_test.go b/integration/viewport_test.go
 new file mode 100644
-index 0000000..7261a66
+index 0000000..9334e67
 --- /dev/null
 +++ b/integration/viewport_test.go
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,72 @@
 +package integration
 +
 +import "testing"
 +
 +// A 24-row terminal, a box asking for `want` content rows plus two borders.
++// The box only ever goes below the cursor -- the rows above hold the previous
++// command's output -- so the only question is how much of it fits.
 +func TestPlanPlacementFor(t *testing.T) {
 +	const h = 24
 +
 +	for _, tc := range []struct {
-+		name               string
-+		row, lines, want   int
-+		wantAbove          bool
-+		wantRows, wantSkip int
++		name      string
++		row, want int
++		wantRows  int
 +	}{
 +		{
-+			name: "unknown row keeps the old downwards behaviour",
-+			row:  -1, lines: 1, want: 6,
-+			wantAbove: false, wantRows: 6,
++			name: "unknown row assumes there is room",
++			row:  -1, want: 6,
++			wantRows: 6,
 +		},
 +		{
-+			name: "room below, single line prompt",
-+			row:  5, lines: 1, want: 6,
-+			wantAbove: false, wantRows: 6,
++			name: "room below",
++			row:  5, want: 6,
++			wantRows: 6,
 +		},
 +		{
 +			name: "exactly enough room below",
-+			row:  15, lines: 1, want: 6, // 24-1-15 = 8 = 6+2
-+			wantAbove: false, wantRows: 6,
++			row:  15, want: 6, // 24-1-15 = 8 = 6+2
++			wantRows: 6,
 +		},
 +		{
-+			name: "one row short below flips it above",
-+			row:  16, lines: 1, want: 6,
-+			wantAbove: true, wantRows: 6, wantSkip: 1,
++			name: "one row short shrinks by one instead of flipping above",
++			row:  16, want: 6, // below = 7, so 5 content rows
++			wantRows: 5,
 +		},
 +		{
-+			name: "last row, single line prompt",
-+			row:  23, lines: 1, want: 6,
-+			wantAbove: true, wantRows: 6, wantSkip: 1,
++			name: "three rows below leaves a one item box",
++			row:  20, want: 6,
++			wantRows: 1,
 +		},
 +		{
-+			// starship draws three lines; the box must clear all of them or it
-+			// paints over the prompt it is meant to sit above
-+			name: "last row, three line prompt",
-+			row:  23, lines: 3, want: 6,
-+			wantAbove: true, wantRows: 6, wantSkip: 3,
++			name: "two rows below is borders only, so nothing",
++			row:  21, want: 6,
++			wantRows: 0,
 +		},
 +		{
-+			name: "near the top with no room either side shrinks to fit",
-+			row:  3, lines: 1, want: 20, // below = 20, need = 22; above = 3
-+			wantAbove: false, wantRows: 18,
++			name: "last row draws nothing rather than painting upwards",
++			row:  23, want: 6,
++			wantRows: 0,
 +		},
 +		{
-+			name: "top row cannot go above at all",
-+			row:  0, lines: 1, want: 6,
-+			wantAbove: false, wantRows: 6, // below = 23, plenty
++			name: "asking for more than the screen holds shrinks to fit",
++			row:  3, want: 40, // below = 20
++			wantRows: 18,
 +		},
 +	} {
 +		t.Run(tc.name, func(t *testing.T) {
-+			got := planPlacementFor(tc.row, tc.lines, h, tc.want)
-+			if got.above != tc.wantAbove || got.rows != tc.wantRows {
-+				t.Errorf("planPlacementFor(row=%d, lines=%d, h=%d, want=%d) = %+v, want above=%v rows=%d",
-+					tc.row, tc.lines, h, tc.want, got, tc.wantAbove, tc.wantRows)
++			got := planPlacementFor(tc.row, h, tc.want)
++			if got != tc.wantRows {
++				t.Errorf("planPlacementFor(row=%d, h=%d, want=%d) = %d, want %d",
++					tc.row, h, tc.want, got, tc.wantRows)
 +			}
-+			if tc.wantAbove && got.skip != tc.wantSkip {
-+				t.Errorf("skip = %d, want %d (must clear the whole prompt block)", got.skip, tc.wantSkip)
-+			}
-+			// whatever it decides, the box must fit on the screen
-+			total := got.rows + 2
-+			if got.above && total > tc.row+1 && tc.row >= 0 {
-+				t.Errorf("box of %d rows does not fit above row %d", total, tc.row)
-+			}
-+			if !got.above && tc.row >= 0 && total > h-tc.row {
-+				t.Errorf("box of %d rows does not fit below row %d on a %d-row screen", total, tc.row, h)
++			// whatever it decides, the box must fit below the cursor: drawing
++			// past the last row scrolls, and a scroll strands reedline's
++			// cached prompt origin.
++			if tc.row >= 0 && got > 0 && got+2 > h-1-tc.row {
++				t.Errorf("box of %d rows does not fit below row %d on a %d-row screen",
++					got+2, tc.row, h)
 +			}
 +		})
 +	}
@@ -939,10 +840,10 @@ index 3916d30..d356cd9 100644
  			var newContent string
 diff --git a/root/init_nu.go b/root/init_nu.go
 new file mode 100644
-index 0000000..858a5ab
+index 0000000..862c00b
 --- /dev/null
 +++ b/root/init_nu.go
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,81 @@
 +package root
 +
 +// nuInitScript is nushell's autostart + IPC hook.
@@ -973,6 +874,28 @@ index 0000000..858a5ab
 +    }
 +}
 +
++# The overlay is drawn below the prompt, and only there: the rows above hold
++# the previous command's output, and painting over them destroys it. At the
++# bottom of the screen there is no room below either, so make some here --
++# before the prompt is printed, which is the only safe moment. Reedline caches
++# the prompt's absolute origin, so anything that scrolls the viewport after it
++# has measured leaves a copy of the prompt behind on every keystroke; that is
++# why iris cannot do this itself from the outside.
++#
++# Costs a few blank rows under the prompt when it sits at the bottom of the
++# screen. Set IRIS_OVERLAY_ROWS=0 to keep the prompt on the last row instead
++# and let the box shrink to whatever fits (usually nothing).
++# Printing n newlines and stepping back up n always leaves exactly n rows
++# below the cursor, wherever it started: the terminal only scrolls for the
++# ones that ran past the last row, and it moves the cursor's own row up by
++# the same amount. So no cursor query is needed, and away from the bottom of
++# the screen this does nothing at all.
++def _iris_reserve [] {
++    let want = ($env.IRIS_OVERLAY_ROWS? | default "0" | into int)
++    if $want < 1 { return }
++    print -n $"(1..$want | each {|| "\n"} | str join)(ansi csi)($want)A"
++}
++
 +# Iris Autocomplete Hook
 +def _iris_send [msg: string] {
 +    let fd = ($env.IRIS_FD? | default "")
@@ -988,6 +911,7 @@ index 0000000..858a5ab
 +        $env.config.hooks.pre_prompt?
 +        | default []
 +        | append {||
++            _iris_reserve
 +            _iris_send $"IRIS_CWD:($env.PWD)"
 +            _iris_send $"IRIS_CMD_STOP:($env.LAST_EXIT_CODE? | default 0)"
 +        }
@@ -1049,7 +973,7 @@ index f6a1b29..42b9bf0 100644
  				shell = deepest
  			}
 diff --git a/root/wrapper.go b/root/wrapper.go
-index b0bee66..5b29e70 100644
+index b0bee66..2403c5a 100644
 --- a/root/wrapper.go
 +++ b/root/wrapper.go
 @@ -159,8 +159,10 @@ func runWrapper() {
@@ -1065,15 +989,38 @@ index b0bee66..5b29e70 100644
  	} else {
  		shellName = detectShell()
  	}
-@@ -244,6 +246,7 @@ func runWrapper() {
+@@ -183,9 +185,19 @@ func runWrapper() {
+ 
+ 	c.Stdin, c.Stdout, c.Stderr = tts, tts, tts
+ 	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true, Setctty: true}
+-	// the shell compares its own tty against this to tell whether the inherited
+-	// IRIS_* vars belong to it or leaked in from an outer terminal
+-	c.Env = append(adapter.GetEnv(13, os.Getpid()), "IRIS_TTY="+tts.Name())
++	// How much room the pre_prompt hook reserves below the prompt. A tall
++	// prompt eats into it (starship draws three lines), and only the user
++	// knows how tall theirs is, so an inherited value wins.
++	overlayRows := os.Getenv("IRIS_OVERLAY_ROWS")
++	if overlayRows == "" {
++		overlayRows = strconv.Itoa(integration.OverlayRows())
++	}
++	// the shell compares its own tty against IRIS_TTY to tell whether the
++	// inherited IRIS_* vars belong to it or leaked in from an outer terminal
++	c.Env = append(adapter.GetEnv(13, os.Getpid()),
++		"IRIS_TTY="+tts.Name(),
++		"IRIS_OVERLAY_ROWS="+overlayRows,
++	)
+ 
+ 	if err = c.Start(); err != nil {
+ 		_ = tts.Close()
+@@ -244,6 +256,7 @@ func runWrapper() {
  			switch s {
  			case syscall.SIGWINCH:
  				logger.Debugf("Received SIGWINCH terminal resize signal")
-+				integration.SetCursorRow(-1) // height changed; re-measure
++				integration.SetCursorRow(-1)         // height changed; re-measure
  				_ = pty.InheritSize(stdinFile, ptmx) // handle terminal window resize
  			// this is the core feature of reloading
  			// it helps IRIS reload itself that you dont need to restart the shell manually
-@@ -360,7 +363,7 @@ func runWrapper() {
+@@ -360,7 +373,7 @@ func runWrapper() {
  	// Shared handler for configured navigation keys (e.g. ctrl+j / ctrl+k).
  	// Moves the overlay cursor when visible, otherwise opens history/spec
  	// list and selects the next item in the requested direction.
@@ -1082,7 +1029,7 @@ index b0bee66..5b29e70 100644
  		if overlay.IsVisible() {
  			intercepted = true
  			userNavigated.Store(true)
-@@ -401,6 +404,23 @@ func runWrapper() {
+@@ -401,6 +414,23 @@ func runWrapper() {
  		} else if suggestionsEnabled {
  			// hidden-overlay history navigation only when suggestions are enabled;
  			// otherwise let the navigation keys pass through to the shell
@@ -1106,7 +1053,7 @@ index b0bee66..5b29e70 100644
  			intercepted = true
  			userNavigated.Store(true)
  
-@@ -539,6 +559,7 @@ func runWrapper() {
+@@ -539,6 +569,7 @@ func runWrapper() {
  
  			if query == "IRIS_CMD_START" {
  				isCommandActive.Store(true)
@@ -1114,35 +1061,25 @@ index b0bee66..5b29e70 100644
  				bufferMu.Lock()
  				naiveBuffer = ""
  				cursorOffset = 0
-@@ -556,6 +577,15 @@ func runWrapper() {
+@@ -556,6 +587,7 @@ func runWrapper() {
  					}
  				}
  				isCommandActive.Store(false)
 +				integration.SetCursorRow(-1) // a fresh prompt lands somewhere new
-+				// pre_prompt fires before the prompt is drawn, so the cursor is
-+				// sitting exactly where the prompt block will start. Measuring it
-+				// here is the only chance to learn the block's extent.
-+				integration.SetPromptRow(-1)
-+				if requestCursorRow(writeStdout, 80*time.Millisecond) {
-+					integration.SetPromptRow(integration.CursorRow())
-+					integration.SetCursorRow(-1)
-+				}
  				SetCurrentAISuggestion(nil)
  				bufferMu.Lock()
  				cmdToRecord := lastSubmittedCommand
-@@ -660,6 +690,17 @@ func runWrapper() {
+@@ -660,6 +692,15 @@ func runWrapper() {
  			return
  		}
  
-+		// Learn where the prompt sits before drawing anything, so the overlay
-+		// can pick a side instead of scrolling to make room. The row is stable
-+		// while a prompt is being edited, so this is once per prompt, not per
-+		// keystroke. Must happen before any lock the input loop also takes:
-+		// the reply is delivered by that loop.
++		// Learn where the cursor sits before drawing anything, so the overlay
++		// can shrink to the room below it instead of scrolling to make more.
++		// The row is stable while a prompt is being edited, so this is once per
++		// prompt, not per keystroke. Must happen before any lock the input loop
++		// also takes: the reply is delivered by that loop.
 +		if !integration.CursorRowKnown() {
-+			if requestCursorRow(writeStdout, 80*time.Millisecond) {
-+				integration.LearnPromptHeight()
-+			}
++			requestCursorRow(writeStdout, 80*time.Millisecond)
 +		}
 +
  		// copy state safely inside timer
