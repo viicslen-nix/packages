@@ -13,6 +13,9 @@ This subflake provides a standalone local package set that can be shared across 
 - `by-name/nvim/`: Neovim/Nixvim plugin-related packages (for example `laravel-nvim`, `mcp-hub`)
 - `by-name/php/`: PHP tooling packages (for example `mago`, `phpantom-lsp`)
 
+`builders/` sits outside `by-name/` (so it is not exported as a package) and
+holds bodies shared by several package files, e.g. `vivaldi-{stable,snapshot}`.
+
 ## How packages are exported
 
 This flake uses `nixpkgs.lib.packagesFromDirectoryRecursive` over `./by-name`, so all package definitions under this directory are exported automatically.
