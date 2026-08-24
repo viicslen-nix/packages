@@ -865,9 +865,9 @@ index 0000000..862c00b
 +    }
 +}
 +
-+# a non-interactive shell (tool runners sourcing config, scripts) has no prompt
-+# to complete, and exec'ing here would seize the tty from the real iris
-+if $nu.is-interactive and ("IRIS_PID" not-in $env) and ("IRIS_RESCUE" not-in $env) {
++# nu is "interactive" whenever started without -c, even on a socket with no
++# tty, so the tty probe is the real guard; IRIS_IS_CHILD catches a re-exec'd child
++if $nu.is-interactive and ("IRIS_PID" not-in $env) and ("IRIS_IS_CHILD" not-in $env) and ("IRIS_RESCUE" not-in $env) and ((do -i { ^tty } | complete).exit_code == 0) {
 +    if (which iris | is-not-empty) {
 +        $env.IRIS_ACTIVE_SHELL = "nu"
 +        exec iris
