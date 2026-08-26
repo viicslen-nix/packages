@@ -13,7 +13,7 @@
     hash = "sha256-nAINq+ARAD9vf9lvfQxKL7hlQwHwNL+YqdGn7B/yLc0=";
   };
 
-  appimageContents = appimageTools.extractType2 {inherit pname version src;};
+  appimageContents = appimageTools.extract {inherit pname version src;};
 
   desktopItem = makeDesktopItem {
     name = pname;

@@ -12,7 +12,7 @@
     hash = "sha256-Qn7GQ1952rXUz7vvVPgIBe+j30q39u3vFzqov6spGd8=";
   };
 
-  appimageContents = appimageTools.extractType2 {inherit pname version src;};
+  appimageContents = appimageTools.extract {inherit pname version src;};
 
   # The t3code home-manager module installs the source build, which owns
   # `t3code.desktop` and `bin/t3code-desktop`. The binaries already differ, but
