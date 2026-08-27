@@ -5,12 +5,12 @@
   makeDesktopItem,
 }: let
   pname = "openwork";
-  version = "0.18.35";
+  version = "0.18.37";
 
   # upstream dropped the .deb after 0.2.x; releases are AppImages now
   src = fetchurl {
     url = "https://github.com/different-ai/openwork/releases/download/v${version}/openwork-linux-x86_64-${version}.AppImage";
-    hash = "sha256-GqOQpnvDilYDDDI91JKaeri8Y9cQCB/rVlcR6bet/+o=";
+    hash = "sha256-X1DM60YpwZrI6cWL3YU3mVG7jomgY/Voj9VWNi/IdEw=";
   };
 
   appimageContents = appimageTools.extract {inherit pname version src;};
