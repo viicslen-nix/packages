@@ -23,6 +23,10 @@
       django = super.django.overridePythonAttrs (_: {
         doCheck = false;
       });
+      # Wall-clock timing tests fail on a loaded builder; python312 builds are not cached.
+      tenacity = super.tenacity.overridePythonAttrs (_: {
+        doCheck = false;
+      });
     }
   );
 
