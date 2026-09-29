@@ -42,16 +42,4 @@ in
       ["opt/vivaldi/vivaldi" "vivaldi-stable" "opt/vivaldi/"]
       ["${basePath}/${exeName}" desktopFileName "${basePath}/"]
       oldAttrs.installPhase;
-
-    # nixpkgs replaces Vivaldi's bundled ffmpeg by symlinking libffmpeg.so.<ver>
-    # to chromium-codecs-ffmpeg-extra, but that package is pinned to an older
-    # Chromium and lacks symbols this Vivaldi build needs (e.g.
-    # av_dynamic_hdr_smpte2094_app5_to_t35). The launcher LD_PRELOADs that
-    # symlink, so point it back at Vivaldi's own version-matched libffmpeg.so.
-    # $version comes from the channel file; trim it to <major>.<minor>.
-    postFixup =
-      (oldAttrs.postFixup or "")
-      + ''
-        ln -sf libffmpeg.so "$out/${basePath}/libffmpeg.so.''${version%.*.*}"
-      '';
   })
