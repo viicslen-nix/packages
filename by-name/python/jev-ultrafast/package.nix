@@ -4,7 +4,7 @@
   python3Packages,
   fetchFromGitHub,
 }:
-python3Packages.buildPythonApplication {
+python3Packages.buildPythonApplication rec {
   pname = "jev-ultrafast";
   version = "0.1.0-unstable-2026-09-18";
   pyproject = true;
@@ -23,6 +23,14 @@ python3Packages.buildPythonApplication {
   dependencies =
     [(callPackage ../browser-harness/package.nix {})]
     ++ python3Packages.httpx.optional-dependencies.http2;
+
+  # browser-harness spawns its daemon as a bare `python -m`, which needs these on PYTHONPATH.
+  makeWrapperArgs = [
+    "--prefix"
+    "PYTHONPATH"
+    ":"
+    (python3Packages.makePythonPath dependencies)
+  ];
 
   nativeCheckInputs = [python3Packages.pytestCheckHook];
 

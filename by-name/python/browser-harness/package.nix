@@ -35,8 +35,18 @@ python3Packages.buildPythonPackage rec {
     mcp
   ];
 
-  # Nix owns the version; the self-updater would `pip install -U` over it.
-  makeWrapperArgs = ["--set-default" "BH_UPDATE_CHECK" "0"];
+  makeWrapperArgs = [
+    # Nix owns the version; the self-updater would `pip install -U` over it.
+    "--set-default"
+    "BH_UPDATE_CHECK"
+    "0"
+    # The daemon is spawned as `sys.executable -m browser_harness.daemon`, a bare
+    # interpreter that never sees the site dirs the entry-point script adds.
+    "--prefix"
+    "PYTHONPATH"
+    ":"
+    "${placeholder "out"}/${python3Packages.python.sitePackages}:${python3Packages.makePythonPath dependencies}"
+  ];
 
   # Importing it creates its state dirs under $HOME.
   preInstallCheck = ''export HOME="$(mktemp -d)"'';
