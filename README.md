@@ -50,7 +50,7 @@ a `package.nix` is one package (its sibling files are helpers); otherwise each
 | `python.mempalace` | MemPalace local AI memory |
 | `scripts.git-carve-submodule` | Split a subdirectory out into its own repo and re-add it as a submodule |
 | `scripts.starship-smart-dir` | Git-aware directory segment for starship |
-| `scripts.{system-install,system-update,system-upgrade}` | NixOS install / flake update / rebuild helpers |
+| `scripts.{system-install,system-upgrade}` | NixOS install / rebuild helpers |
 | `superset.{cli,desktop}` | Superset CLI and desktop app |
 
 `./scripts/packages.sh list` (or `just packages`) prints the current set.
