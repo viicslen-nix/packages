@@ -6,13 +6,13 @@
 }:
 buildGoModule (finalAttrs: {
   pname = "iris";
-  version = "0.7.0";
+  version = "0.7.1";
 
   src = fetchFromGitHub {
     owner = "versenilvis";
     repo = "iris";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-bfwWkKPdRA3vE04ovn6b2DUyp1nDtDtN/6j0pVk9thA=";
+    hash = "sha256-zd5/IH+nH6bWMCYfqJL/URQnEUF9AEIEWBz9Z+nHZbU=";
   };
 
   # Upstream supports bash, zsh and fish only. The patch adds a nushell
