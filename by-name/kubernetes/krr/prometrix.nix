@@ -7,7 +7,6 @@
   poetry-core,
   prometheus-api-client,
   pydantic,
-  pythonAtLeast,
   requests,
   unstableGitUpdater,
 }:

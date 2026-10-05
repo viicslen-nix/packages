@@ -1,5 +1,4 @@
 {
-  lib,
   fetchurl,
   thunderbird-esr-bin-unwrapped,
   wrapThunderbird,

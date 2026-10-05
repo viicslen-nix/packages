@@ -3,8 +3,6 @@
   stdenv,
   git,
   git-filter-repo,
-  gnugrep,
-  gnused,
   coreutils,
   ...
 }:

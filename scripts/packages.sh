@@ -19,7 +19,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # by-name/<dir>/package.nix -> <dir>; by-name/<dir>/<name>.nix -> <dir>/<name>
 attr_of() {
   local f=$1 d=${1%/*} a
-  if [[ -f $d/package.nix ]]; then a=${d#by-name/}; else a=${f#by-name/}; a=${a%.nix}; fi
+  if [[ -f $d/package.nix ]]; then
+    a=${d#by-name/}
+  else
+    a=${f#by-name/}
+    a=${a%.nix}
+  fi
   echo "${a//\//.}"
 }
 
@@ -75,7 +80,10 @@ outdated() {
 
     if [[ -z $owner || -z $repo ]]; then
       latest=$(latest_other "$f" "$attr") || latest=''
-      if [[ -z $latest ]]; then other+=("$attr"); continue; fi
+      if [[ -z $latest ]]; then
+        other+=("$attr")
+        continue
+      fi
     else
       # tag template -> release-tag prefix ("cli-v${version}" -> "cli-v"); ignore pinned revs
       tag=$(sed -n -e 's|.*releases/download/\([^/]*\)/.*|\1|p' -e 's/.*\(rev\|tag\) = "\([^"]*\)".*/\2/p' "$f" | head -1)
@@ -93,7 +101,7 @@ outdated() {
     # only flag a real forward move (upstream's newest stable can be behind a pinned prerelease)
     mark=''
     if [[ $latest != "$current" && $latest != - && $latest != '?' ]] &&
-       [[ $(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1) == "$latest" ]]; then
+      [[ $(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1) == "$latest" ]]; then
       mark='  <- update'
     fi
     printf '%-24s %-14s %-14s%s\n' "$attr" "$current" "$latest" "$mark"
@@ -111,7 +119,8 @@ vivaldi_latest() {
 }
 
 bump() {
-  local attr=$1; shift
+  local attr=$1
+  shift
   local args=("$@")
   if [[ $attr == vivaldi-* && ! " ${args[*]-} " =~ " --version " ]]; then
     args+=(--version "$(vivaldi_latest "${attr#vivaldi-}")")
@@ -123,7 +132,10 @@ bump() {
 bump_outdated() {
   local rows attr latest failed=()
   mapfile -t rows < <(outdated | awk '/<- update/ {print $1, $3}')
-  if [[ ${#rows[@]} -eq 0 ]]; then echo 'everything up to date'; return 0; fi
+  if [[ ${#rows[@]} -eq 0 ]]; then
+    echo 'everything up to date'
+    return 0
+  fi
   printf 'bumping %d package(s)\n' "${#rows[@]}"
   for row in "${rows[@]}"; do
     read -r attr latest <<<"$row"
@@ -146,7 +158,8 @@ bump_all() {
   [[ ${#skipped[@]} -eq 0 ]] || printf 'skipped (no version detected): %s\n' "${skipped[*]}"
 }
 
-cmd=${1:-list}; shift || true
+cmd=${1:-list}
+shift || true
 case $cmd in
   list) list ;;
   outdated) outdated ;;
@@ -154,5 +167,8 @@ case $cmd in
   bump) bump "$@" ;;
   bump-outdated) bump_outdated "$@" ;;
   bump-all) bump_all "$@" ;;
-  *) echo "usage: ${0##*/} {list|outdated|bump <attr> [args]|bump-outdated|bump-all|vivaldi-latest <channel>}" >&2; exit 2 ;;
+  *)
+    echo "usage: ${0##*/} {list|outdated|bump <attr> [args]|bump-outdated|bump-all|vivaldi-latest <channel>}" >&2
+    exit 2
+    ;;
 esac
