@@ -8,17 +8,17 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "openwiki";
-  version = "0.6.1";
+  version = "0.7.1";
 
   src = fetchurl {
     url = "https://registry.npmjs.org/openwiki/-/openwiki-${finalAttrs.version}.tgz";
-    hash = "sha256-Zxk3Eiq0GUhuJPBmt6AahVId2J5X+5cTD9hZuUAYV44=";
+    hash = "sha256-8PRzZnaO7u8UpxuVZBuvuAj5cCOfa7sQQfZMm4tiqXs=";
   };
 
   # The registry tarball ships no lockfile, so this one is generated from the
   # published package.json with `npm install --package-lock-only
-  # --ignore-scripts` after stripping devDependencies -- regenerate it on every
-  # version bump or npmDepsHash will not match.
+  # --ignore-scripts --legacy-peer-deps` after stripping devDependencies --
+  # regenerate it on every version bump or npmDepsHash will not match.
   postPatch = ''
     ${lib.getExe nodejs} -e '
       const fs = require("fs");
@@ -30,12 +30,13 @@ buildNpmPackage (finalAttrs: {
     cp ${./package-lock.json} package-lock.json
   '';
 
-  npmDepsHash = "sha256-KGtL5r3koAYCaCailYCs4wnAWaJerucBmFdKIvgubho=";
+  npmDepsHash = "sha256-34lLrDoKIRFIurmr/BoPxkkXgwcnA90oF8Jgp2GbOxI=";
 
   # `dist/` is prebuilt in the tarball; only better-sqlite3 has to compile, and
   # its bundled prebuild-install would otherwise fetch a binary from the net.
   dontNpmBuild = true;
-  npmFlags = ["--omit=dev"];
+  # deepagents pins langsmith <0.10 while openwiki itself wants ^0.10.5.
+  npmFlags = ["--omit=dev" "--legacy-peer-deps"];
   env.npm_config_build_from_source = "true";
 
   nativeBuildInputs = [python3];
