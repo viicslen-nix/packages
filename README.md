@@ -109,7 +109,8 @@ nix flake check  # formatting + statix gates
   Vivaldi channels keep both in `vivaldi-{stable,snapshot}.nix`.
 - Version autodetect covers GitHub, GitLab, PyPI, npm and crates.io. Anything
   else needs `--version <x>`; Vivaldi's channels read the newest build from
-  Vivaldi's apt index instead. Multi-platform `fetchurl` needs a second pass
+  Vivaldi's apt index instead. Per-package flags go in a `nix-update-args`
+  file beside its `package.nix`, one argument per line. Multi-platform `fetchurl` needs a second pass
   with `--system aarch64-linux`.
 - `openwiki`'s `package-lock.json` is generated, not upstream: regenerate it
   before `npmDepsHash` on every bump.

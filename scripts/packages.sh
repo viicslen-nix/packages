@@ -10,7 +10,10 @@
 #   ./scripts/packages.sh bump coderabbit --version 0.4.5
 #
 # An attr is a package's path under by-name/ with slashes turned into dots
-# (`app-images.t3code`, `superset.cli`, bare `coderabbit`).
+# (`t3code.nightly`, `superset.cli`, bare `coderabbit`).
+#
+# A package directory may hold a `nix-update-args` file, one argument per
+# line, that `bump` passes before any given on the command line.
 set -euo pipefail
 
 # the subflake root, wherever it is checked out
@@ -66,7 +69,7 @@ latest_other() {
 
 # Read-only: no downloads, no file edits — feed the results to `bump <attr>`
 outdated() {
-  local f attr owner repo current tag prefix latest mark other=()
+  local f attr owner repo current tag prefix channel latest mark other=()
   printf '%-24s %-14s %-14s\n' ATTR CURRENT LATEST
   while read -r f; do
     attr=$(attr_of "$f")
@@ -89,11 +92,15 @@ outdated() {
       tag=$(sed -n -e 's|.*releases/download/\([^/]*\)/.*|\1|p' -e 's/.*\(rev\|tag\) = "\([^"]*\)".*/\2/p' "$f" | head -1)
       if [[ $tag =~ ^[0-9a-f]{40}$ ]]; then tag=''; fi
       prefix=${tag%%[0-9$]*}
+      # a version pinned to a prerelease channel (1.2.3-nightly.…) only tracks that channel
+      channel=$(sed -n 's/^[0-9.]*-\(alpha\|beta\|canary\|nightly\|preview\|rc\)\..*/\1/p' <<<"$current")
 
       # newest tag with that prefix followed by a digit; stable preferred, prerelease as fallback
       latest=$(gh api "repos/$owner/$repo/releases?per_page=50" --jq "
         (\"$prefix\") as \$p
-        | [.[] | select(.tag_name | startswith(\$p)) | select(.tag_name[(\$p | length):] | test(\"^[0-9]\"))] as \$c
+        | (\"$channel\") as \$ch
+        | [.[] | select(.tag_name | startswith(\$p)) | select(.tag_name[(\$p | length):] | test(\"^[0-9]\"))
+          | select(\$ch == \"\" or (.tag_name | contains(\"-\" + \$ch + \".\")))] as \$c
         | (([\$c[] | select(.prerelease == false)] | .[0]) // \$c[0]).tag_name // \"-\"" 2>/dev/null) || latest='?'
       latest=${latest#"$prefix"}
     fi
@@ -121,7 +128,9 @@ vivaldi_latest() {
 bump() {
   local attr=$1
   shift
-  local args=("$@")
+  local args=() argsfile="by-name/${attr//.//}/nix-update-args"
+  if [[ -f $argsfile ]]; then mapfile -t args < <(grep -v '^$' "$argsfile"); fi
+  args+=("$@")
   if [[ $attr == vivaldi-* && ! " ${args[*]-} " =~ " --version " ]]; then
     args+=(--version "$(vivaldi_latest "${attr#vivaldi-}")")
   fi
