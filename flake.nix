@@ -7,12 +7,15 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Leave `nixpkgs` un-overridden — it is what keeps cache.numtide.com hitting.
+    llm-agents.url = "github:numtide/llm-agents.nix";
   };
 
   outputs = {
     self,
     nixpkgs,
     treefmt-nix,
+    llm-agents,
     ...
   }: let
     systems = [
@@ -41,7 +44,9 @@
       };
     in
       nixpkgs.lib.packagesFromDirectoryRecursive {
-        inherit (pkgs) callPackage;
+        callPackage = pkgs.newScope {
+          llm-agents = llm-agents.packages.${system};
+        };
         directory = ./by-name;
       });
   };

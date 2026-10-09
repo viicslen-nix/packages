@@ -31,7 +31,7 @@ a `package.nix` is one package (its sibling files are helpers); otherwise each
 
 | Attr | What it is |
 | --- | --- |
-| `app-images.{responsively,t3code,vial}` | AppImage wraps: Responsively, T3 Code, Vial |
+| `app-images.{responsively,vial}` | AppImage wraps: Responsively, Vial |
 | `awesome-vivaldi` | Vivaldi modpack (CSS/JS mods and their loader) |
 | `vivaldi-stable`, `vivaldi-snapshot` | Vivaldi builds, sharing [`builders/vivaldi.nix`](builders/vivaldi.nix) |
 | `betterbird` | Betterbird, the Thunderbird fork, as a wrapped binary |
@@ -52,6 +52,8 @@ a `package.nix` is one package (its sibling files are helpers); otherwise each
 | `scripts.starship-smart-dir` | Git-aware directory segment for starship |
 | `scripts.{system-install,system-upgrade}` | NixOS install / rebuild helpers |
 | `superset.{cli,desktop}` | Superset CLI and desktop app |
+| `t3code.app-image` | T3 Code stable, as an AppImage wrap |
+| `t3code.nightly` | llm-agents' T3 Code source build, retargeted at the latest nightly tag |
 
 `./scripts/packages.sh list` (or `just packages`) prints the current set.
 

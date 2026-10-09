@@ -1,6 +1,6 @@
 # Package maintenance for this subflake. The root repo aliases these recipes.
 # An attr is a package's path under by-name/ with slashes turned into dots
-# (app-images.t3code, superset.cli, bare coderabbit).
+# (t3code.nightly, superset.cli, bare coderabbit).
 
 # List the local package attrs (as `just bump` takes them)
 packages:

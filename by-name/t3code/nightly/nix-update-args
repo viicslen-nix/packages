@@ -1,0 +1,7 @@
+--override-filename
+by-name/t3code/nightly/package.nix
+--use-github-releases
+--version
+unstable
+--version-regex
+^v(\d+\.\d+\.\d+-nightly\.\d+\.\d+)$
