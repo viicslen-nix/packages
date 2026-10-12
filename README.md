@@ -49,7 +49,6 @@ a `package.nix` is one package (its sibling files are helpers); otherwise each
 | `python.jev-ultrafast` | Jev Ultrafast browser agent |
 | `python.mempalace` | MemPalace local AI memory |
 | `scripts.git-carve-submodule` | Split a subdirectory out into its own repo and re-add it as a submodule |
-| `scripts.starship-smart-dir` | Git-aware directory segment for starship |
 | `scripts.{system-install,system-upgrade}` | NixOS install / rebuild helpers |
 | `superset.{cli,desktop}` | Superset CLI and desktop app |
 | `t3code.app-image` | T3 Code stable, as an AppImage wrap |
