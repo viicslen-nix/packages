@@ -5,12 +5,12 @@
   makeDesktopItem,
 }: let
   pname = "github-copilot-desktop";
-  version = "1.1.27";
+  version = "1.1.29";
   executableName = "github-copilot";
 
   src = fetchurl {
     url = "https://github.com/github/app/releases/download/v${version}/GitHub-Copilot-linux-x64.AppImage";
-    hash = "sha256-uOY7LFyu68epNWTCim+fszlFdsrkpmA7z6b95TI6lHk=";
+    hash = "sha256-8RNnmsBiDQF59Dt1J5Sgg9XX2nuc96I+uAH1Z0GBd7w=";
   };
 
   appimageContents = appimageTools.extract {inherit pname version src;};

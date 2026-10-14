@@ -8,14 +8,14 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "ccstatusline";
-  version = "2.2.30";
+  version = "2.2.32";
 
   # `bun build --target=node` emits one self-contained file and the package
   # declares no runtime dependencies, so the registry tarball is the whole
   # thing -- no lockfile to pin and no node_modules to vendor.
   src = fetchurl {
     url = "https://registry.npmjs.org/ccstatusline/-/ccstatusline-${finalAttrs.version}.tgz";
-    hash = "sha256-NWR5zB/3Nbdmvrom7ploLN7xQ8YDsPTx/X5qVugn12k=";
+    hash = "sha256-Brrb7UM0p6TRFUhbjNug5rtlQNwak2FZIQ29/M71hpI=";
   };
 
   nativeBuildInputs = [makeWrapper];

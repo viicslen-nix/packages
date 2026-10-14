@@ -8,11 +8,11 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "openwiki";
-  version = "0.7.1";
+  version = "0.7.2";
 
   src = fetchurl {
     url = "https://registry.npmjs.org/openwiki/-/openwiki-${finalAttrs.version}.tgz";
-    hash = "sha256-8PRzZnaO7u8UpxuVZBuvuAj5cCOfa7sQQfZMm4tiqXs=";
+    hash = "sha256-F/AGH7tgybFBCzDeHEf7zBtjm7lRmpeY5EFcqP++cVU=";
   };
 
   # The registry tarball ships no lockfile, so this one is generated from the
