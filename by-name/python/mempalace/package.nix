@@ -5,12 +5,12 @@
 }:
 python3Packages.buildPythonApplication rec {
   pname = "mempalace";
-  version = "3.10.0";
+  version = "3.11.0";
   pyproject = true;
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-x28a6ugaaLaVJJ+UDmdx8UeuO+c9mbtDrZNTDeEssfQ=";
+    hash = "sha256-Xl/1JnHV11ERPZBnVV1p0O93tnLfH73GTbwW82BjkhQ=";
   };
 
   build-system = [python3Packages.hatchling];
