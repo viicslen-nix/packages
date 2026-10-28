@@ -13,6 +13,12 @@ python3Packages.buildPythonApplication rec {
     hash = "sha256-Xl/1JnHV11ERPZBnVV1p0O93tnLfH73GTbwW82BjkhQ=";
   };
 
+  # The Stop hook has no setting to silence its per-turn "✦ N checkpoint saved" line; the save still happens.
+  postPatch = ''
+    grep -q '{drawers_filed} checkpoint saved' mempalace/hooks_cli.py
+    sed -i '/{drawers_filed} checkpoint saved/d' mempalace/hooks_cli.py
+  '';
+
   build-system = [python3Packages.hatchling];
 
   dependencies = with python3Packages; [
