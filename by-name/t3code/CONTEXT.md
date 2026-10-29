@@ -42,8 +42,16 @@ OAuth callbacks go to whichever app started last.
 installed), unstable allowed, filtered to `-nightly.` tags, and
 `--override-filename` because nix-update would otherwise try to edit
 llm-agents' read-only files, where `src` is defined. It rewrites `version`, the
-src hash and the `pnpmDeps` hash here. `just outdated` tracks only the nightly
-channel for any version pinned to one.
+src hash and the `pnpmDeps` hash here.
+
+A stable release published after the last nightly (and not behind its base
+version) wins: upstream cuts `v0.1.5` *after* `v0.1.5-nightly.*`, and that
+stable tag is then the newest code. nix-update cannot choose it — it ranks
+`0.1.5` below `0.1.5-nightly.*`, as `builtins.compareVersions` does — so
+`scripts/packages.sh` picks the version itself (`nightly_or_stable`, by
+publish date) for both `bump` and `outdated`, and hands nix-update an explicit
+`--version`. The next nightly moves it back to the nightly channel. The build
+is the same either way, still renamed to `t3-nightly`.
 
 **The llm-agents pin must match the root's.** The root makes this flake's
 `llm-agents` follow its own, so hosts build against the root pin — but

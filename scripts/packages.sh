@@ -81,7 +81,9 @@ outdated() {
     fi
     current=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' "$f" | head -1)
 
-    if [[ -z $owner || -z $repo ]]; then
+    if [[ $attr == t3code.nightly ]]; then
+      latest=$(nightly_or_stable "$owner/$repo") || latest='?'
+    elif [[ -z $owner || -z $repo ]]; then
       latest=$(latest_other "$f" "$attr") || latest=''
       if [[ -z $latest ]]; then
         other+=("$attr")
@@ -105,10 +107,11 @@ outdated() {
       latest=${latest#"$prefix"}
     fi
 
-    # only flag a real forward move (upstream's newest stable can be behind a pinned prerelease)
+    # only flag a real forward move (upstream's newest stable can be behind a pinned prerelease);
+    # sort -V ranks 1.2.3 below 1.2.3-nightly.*, so a release beating its own prerelease is checked apart
     mark=''
     if [[ $latest != "$current" && $latest != - && $latest != '?' ]] &&
-      [[ $(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1) == "$latest" ]]; then
+      [[ $latest == "${current%%-*}" || $(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1) == "$latest" ]]; then
       mark='  <- update'
     fi
     printf '%-24s %-14s %-14s%s\n' "$attr" "$current" "$latest" "$mark"
@@ -125,11 +128,31 @@ vivaldi_latest() {
     sort -V | tail -1
 }
 
+# Newest of a repo's v<x.y.z>-nightly.* and v<x.y.z> releases: the stable one only
+# when published after the last nightly and not behind its base version. nix-update
+# can't pick this itself: it ranks 1.2.3 below 1.2.3-nightly.*, as nix does.
+nightly_or_stable() {
+  gh api "repos/$1/releases?per_page=50" --jq '
+    [.[] | select(.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-nightly\\.[0-9]+\\.[0-9]+)?$"))] as $r
+    | ([$r[] | select(.tag_name | contains("-nightly."))] | max_by(.published_at)) as $n
+    | ([$r[] | select(.prerelease == false and (.tag_name | contains("-") | not))] | max_by(.published_at)) as $s
+    | def base: .tag_name[1:] | split("-")[0] | split(".") | map(tonumber);
+      (if $s != null and ($n == null or ($s.published_at > $n.published_at and ($s | base) >= ($n | base)))
+       then $s else $n end).tag_name[1:] // "-"'
+}
+
 bump() {
   local attr=$1
   shift
   local args=() argsfile="by-name/${attr//.//}/nix-update-args"
   if [[ -f $argsfile ]]; then mapfile -t args < <(grep -v '^$' "$argsfile"); fi
+  # checked against the caller's args only: nix-update-args carries its own --version
+  if [[ $attr == t3code.nightly && ! " $* " =~ " --version " ]]; then
+    local version
+    version=$(nightly_or_stable pingdotgg/t3code)
+    [[ $version != - ]] || { echo "t3code.nightly: no matching release" >&2 && return 1; }
+    args+=(--version "$version")
+  fi
   args+=("$@")
   if [[ $attr == vivaldi-* && ! " ${args[*]-} " =~ " --version " ]]; then
     args+=(--version "$(vivaldi_latest "${attr#vivaldi-}")")
@@ -137,10 +160,13 @@ bump() {
   nix run nixpkgs#nix-update -- --flake "$attr" ${args[@]+"${args[@]}"}
 }
 
-# Bump every package `outdated` reports as behind, to that exact version
+# Bump every package `outdated` reports as behind, to that exact version.
+# Leading attr arguments restrict it to those; the rest go to nix-update.
 bump_outdated() {
-  local rows attr latest failed=()
-  mapfile -t rows < <(outdated | awk '/<- update/ {print $1, $3}')
+  local rows attr latest only=() failed=()
+  while [[ $# -gt 0 && $1 != -* ]]; do only+=("$1") && shift; done
+  mapfile -t rows < <(outdated | awk -v only=" ${only[*]-} " \
+    '/<- update/ && (only == "  " || index(only, " " $1 " ")) {print $1, $3}')
   if [[ ${#rows[@]} -eq 0 ]]; then
     echo 'everything up to date'
     return 0

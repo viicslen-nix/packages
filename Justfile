@@ -18,7 +18,7 @@ bump ATTR *ARGS:
   @./scripts/packages.sh bump {{ATTR}} {{ARGS}}
 
 # Bump every package `just outdated` reports as behind, to that exact version
-# Usage: just bump-outdated [--commit]
+# Usage: just bump-outdated [ATTR...] [--commit]
 bump-outdated *ARGS:
   @./scripts/packages.sh bump-outdated {{ARGS}}
 
