@@ -168,7 +168,7 @@ bump() {
     local i current target=''
     for ((i = 0; i < ${#args[@]} - 1; i++)); do [[ ${args[i]} != --version ]] || target=${args[i + 1]}; done
     current=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' by-name/t3code/nightly/package.nix | head -1)
-    # the pnpmDeps refetch is ~1.3 GB (every platform's binaries); an unchanged lockfile keeps its hash
+    # the pnpmDeps refetch is ~350 MB; an unchanged lockfile keeps its hash
     if same_pnpm_lock pingdotgg/t3code "$current" "$target"; then
       echo "t3code.nightly: pnpm lockfile unchanged since $current, keeping the pnpmDeps hash"
       args+=(--src-only)

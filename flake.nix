@@ -46,6 +46,7 @@
       nixpkgs.lib.packagesFromDirectoryRecursive {
         callPackage = pkgs.newScope {
           llm-agents = llm-agents.packages.${system};
+          llm-agents-pkgs = llm-agents.inputs.nixpkgs.legacyPackages.${system};
         };
         directory = ./by-name;
       });

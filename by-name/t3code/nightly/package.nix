@@ -2,12 +2,17 @@
   lib,
   makeDesktopItem,
   llm-agents,
+  llm-agents-pkgs,
   # Named after llm-agents' wrapper argument: the t3code home-manager module `.override`s it.
   t3code-unwrapped ? null,
 }: let
   version = "0.1.6-nightly.20261030.3940";
 
-  stable = llm-agents.t3code.unwrapped;
+  # Toolchain from llm-agents' nixpkgs, not ours: hosts override our nixpkgs, and the pnpmDeps hash depends on pnpm.
+  stable = llm-agents.t3code.unwrapped.override {
+    nodejs_24 = llm-agents-pkgs.nodejs_26;
+    pnpm_11 = llm-agents-pkgs.pnpm_12;
+  };
 
   replaceOrThrow = what: from: to: s: let
     out = lib.replaceStrings [from] [to] s;
@@ -45,10 +50,14 @@
   nightly = stable.overrideAttrs (old: {
     inherit version src;
 
-    pnpmDeps = old.pnpmDeps.override {
-      inherit version src;
-      hash = "sha256-ePHBnnDdBnkoiU8y3NY1u04Ez97zKNv5ZcIRvy8hhJ4=";
-    };
+    # Without --force pnpm fetches host-platform optional deps only (1.3 GB -> 344 MB); the hash is per-system.
+    pnpmDeps =
+      (old.pnpmDeps.override {
+        inherit version src;
+        hash = "sha256-ElRDvzbLEymvZme0/1uVrELGPBQbXhO6F6GGLh+wqyw=";
+      }).overrideAttrs (o: {
+        installPhase = replaceOrThrow "fetchPnpmDeps' --force" ''"--force"'' "" o.installPhase;
+      });
 
     postPatch =
       (old.postPatch or "")
