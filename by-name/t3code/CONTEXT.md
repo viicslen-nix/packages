@@ -44,6 +44,14 @@ installed), unstable allowed, filtered to `-nightly.` tags, and
 llm-agents' read-only files, where `src` is defined. It rewrites `version`, the
 src hash and the `pnpmDeps` hash here.
 
+The `pnpmDeps` step is nearly all of a bump's time: `fetchPnpmDeps` installs
+with `--force`, so it downloads every platform's prebuilt binaries (~1.3 GB)
+just to learn a hash. About half of the nightlies leave `pnpm-lock.yaml` and
+`pnpm-workspace.yaml` alone, so when both blobs match between the old and new
+tag, `bump` passes `--src-only` and keeps the hash. That reasoning breaks if a
+llm-agents bump changes pnpm itself. If the build then fails on a `pnpmDeps`
+hash mismatch, run `just bump t3code.nightly --no-src`.
+
 A stable release published after the last nightly (and not behind its base
 version) wins: upstream cuts `v0.1.5` *after* `v0.1.5-nightly.*`, and that
 stable tag is then the newest code. nix-update cannot choose it — it ranks
@@ -60,7 +68,15 @@ hash depends on llm-agents' pnpm, so a drifted pin can produce a hash the host
 build then rejects. After `just update-input llm-agents` in the root, re-lock
 here to the same rev.
 
-Nightlies build from source; there is no cache for them.
+Nightlies build from source; there is no cache for them. Of a ~3 min build,
+the stock fixup took ~54s: `stripDirs` runs `strip` once per regular file
+(`xargs -n1`) and `noBrokenSymlinks` walks every link, across ~47k
+`node_modules` files that hold only a few ELFs. Those ELFs are prebuilt addons
+(mostly for other platforms) and small binaries that are already stripped.
+`installPhase` already deletes broken links. So the nightly sets `dontStrip` and
+`dontCheckForBrokenSymlinks`, and fixup drops below stdenv's 30s reporting
+threshold. vite-plus's "cache disabled" is not worth chasing: each `vp` task
+runs once in a fresh sandbox, so a cache could never hit.
 
 ## `app-image`
 

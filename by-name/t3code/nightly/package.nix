@@ -91,6 +91,10 @@
         )
       '';
 
+    # Both walk every node_modules file one process at a time (~75s) for a handful of ELFs.
+    dontStrip = true;
+    dontCheckForBrokenSymlinks = true;
+
     passthru = old.passthru // {inherit resourceMonitor;};
 
     meta = old.meta // {changelog = "https://github.com/pingdotgg/t3code/releases/tag/v${version}";};
