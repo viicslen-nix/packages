@@ -141,6 +141,16 @@ nightly_or_stable() {
        then $s else $n end).tag_name[1:] // "-"'
 }
 
+# True when both tags carry the same pnpm-lock.yaml and pnpm-workspace.yaml blobs
+same_pnpm_lock() {
+  local repo=$1 from=$2 to=$3 f a b
+  for f in pnpm-lock.yaml pnpm-workspace.yaml; do
+    a=$(gh api "repos/$repo/contents/$f?ref=v$from" --jq .sha 2>/dev/null) || return 1
+    b=$(gh api "repos/$repo/contents/$f?ref=v$to" --jq .sha 2>/dev/null) || return 1
+    [[ -n $a && $a == "$b" ]] || return 1
+  done
+}
+
 bump() {
   local attr=$1
   shift
@@ -154,6 +164,16 @@ bump() {
     args+=(--version "$version")
   fi
   args+=("$@")
+  if [[ $attr == t3code.nightly ]]; then
+    local i current target=''
+    for ((i = 0; i < ${#args[@]} - 1; i++)); do [[ ${args[i]} != --version ]] || target=${args[i + 1]}; done
+    current=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' by-name/t3code/nightly/package.nix | head -1)
+    # the pnpmDeps refetch is ~1.3 GB (every platform's binaries); an unchanged lockfile keeps its hash
+    if same_pnpm_lock pingdotgg/t3code "$current" "$target"; then
+      echo "t3code.nightly: pnpm lockfile unchanged since $current, keeping the pnpmDeps hash"
+      args+=(--src-only)
+    fi
+  fi
   if [[ $attr == vivaldi-* && ! " ${args[*]-} " =~ " --version " ]]; then
     args+=(--version "$(vivaldi_latest "${attr#vivaldi-}")")
   fi
