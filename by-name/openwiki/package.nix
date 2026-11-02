@@ -30,7 +30,7 @@ buildNpmPackage (finalAttrs: {
     cp ${./package-lock.json} package-lock.json
   '';
 
-  npmDepsHash = "sha256-34lLrDoKIRFIurmr/BoPxkkXgwcnA90oF8Jgp2GbOxI=";
+  npmDepsHash = "sha256-E7xblXp4QHK7t0J+KnGRZi+EjtQJm8AtHFf4y21ga0o=";
 
   # `dist/` is prebuilt in the tarball; only better-sqlite3 has to compile, and
   # its bundled prebuild-install would otherwise fetch a binary from the net.
