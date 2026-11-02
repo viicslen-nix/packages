@@ -7,13 +7,13 @@
 }:
 stdenv.mkDerivation (finalAttrs: {
   pname = "coderabbit";
-  version = "0.9.1";
+  version = "0.9.2";
 
   src = fetchurl (
     if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64
     then {
       url = "https://cli.coderabbit.ai/releases/${finalAttrs.version}/coderabbit-linux-x64.zip";
-      hash = "sha256-lVjgLxtlcK3jPYGRsz4Q/64kcqsmgNRRjQMmG868gLw=";
+      hash = "sha256-spvvVf1aQaKHKThRas3kb0wMz4/YHA2GgpxDWnWl/Zo=";
     }
     else if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isAarch64
     then {
