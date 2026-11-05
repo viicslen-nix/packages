@@ -5,7 +5,7 @@
   proprietaryCodecs ? false,
   enableWidevine ? false,
 }: let
-  version = "8.2.4133.87";
+  version = "8.3.4191.28";
 in
   (callPackage ../builders/vivaldi.nix {
     channel = "stable";
@@ -16,6 +16,6 @@ in
 
     src = fetchurl {
       url = "https://downloads.vivaldi.com/stable/vivaldi-stable_${version}-1_amd64.deb";
-      hash = "sha256-DiWdhnEJzqo9AR33/Jn6XMlITkx32zOnBV5d2UHLJC8=";
+      hash = "sha256-d63vsm7x+zFHymASivhG5pfwGadwtregs2sAYZB0oqM=";
     };
   })

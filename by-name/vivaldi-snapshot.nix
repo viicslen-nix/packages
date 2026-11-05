@@ -5,7 +5,7 @@
   proprietaryCodecs ? false,
   enableWidevine ? false,
 }: let
-  version = "8.3.4185.3";
+  version = "8.3.4191.23";
 in
   (callPackage ../builders/vivaldi.nix {
     channel = "snapshot";
@@ -16,6 +16,6 @@ in
 
     src = fetchurl {
       url = "https://downloads.vivaldi.com/snapshot/vivaldi-snapshot_${version}-1_amd64.deb";
-      hash = "sha256-+nPdtT+QLd3/bvYNulVXZhUsHYNpG4/PkP+bwjVgiUg=";
+      hash = "sha256-TgR4m4AH28l/tQ1MiJfiUXZ/x6hoBdMOfOB5CcHhN1A=";
     };
   })
