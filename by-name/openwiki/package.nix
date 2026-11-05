@@ -8,11 +8,11 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "openwiki";
-  version = "0.7.3";
+  version = "0.9.0";
 
   src = fetchurl {
     url = "https://registry.npmjs.org/openwiki/-/openwiki-${finalAttrs.version}.tgz";
-    hash = "sha256-aTAyxpXXbrTija0b1bypYwBeypJtbCQsQ+G2+Iw8TVw=";
+    hash = "sha256-hZHU7NQzENChEDTGJFz0EXO65i5W/HiLlAc3ANcPPTI=";
   };
 
   # The registry tarball ships no lockfile, so this one is generated from the
@@ -30,7 +30,7 @@ buildNpmPackage (finalAttrs: {
     cp ${./package-lock.json} package-lock.json
   '';
 
-  npmDepsHash = "sha256-E7xblXp4QHK7t0J+KnGRZi+EjtQJm8AtHFf4y21ga0o=";
+  npmDepsHash = "sha256-VPHlONGA/a9Zxzs4P2IRAtUZsJc0AFPXiNHEnCQT06k=";
 
   # `dist/` is prebuilt in the tarball; only better-sqlite3 has to compile, and
   # its bundled prebuild-install would otherwise fetch a binary from the net.
