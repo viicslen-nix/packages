@@ -15,18 +15,10 @@ buildNpmPackage (finalAttrs: {
     hash = "sha256-hZHU7NQzENChEDTGJFz0EXO65i5W/HiLlAc3ANcPPTI=";
   };
 
-  # The registry tarball ships no lockfile, so this one is generated from the
-  # published package.json with `npm install --package-lock-only
-  # --ignore-scripts --legacy-peer-deps` after stripping devDependencies --
-  # regenerate it on every version bump or npmDepsHash will not match.
+  # The registry tarball ships no lockfile; `just bump openwiki` regenerates
+  # package-lock.json and npmDepsHash from the same stripped package.json.
   postPatch = ''
-    ${lib.getExe nodejs} -e '
-      const fs = require("fs");
-      const pkg = JSON.parse(fs.readFileSync("package.json"));
-      delete pkg.devDependencies;
-      delete pkg.scripts;
-      fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
-    '
+    ${lib.getExe nodejs} ${./strip-package-json.js}
     cp ${./package-lock.json} package-lock.json
   '';
 

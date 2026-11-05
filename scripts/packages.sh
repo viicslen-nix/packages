@@ -177,7 +177,28 @@ bump() {
   if [[ $attr == vivaldi-* && ! " ${args[*]-} " =~ " --version " ]]; then
     args+=(--version "$(vivaldi_latest "${attr#vivaldi-}")")
   fi
+  [[ $attr != openwiki ]] || args+=(--src-only)
   nix run nixpkgs#nix-update -- --flake "$attr" ${args[@]+"${args[@]}"}
+  [[ $attr != openwiki ]] || openwiki_lock
+}
+
+# openwiki's registry tarball ships no lockfile: regenerate it from the
+# package.json its postPatch builds, then the npmDepsHash that matches it
+openwiki_lock() {
+  local dir=by-name/openwiki version tmp hash
+  version=$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' "$dir/package.nix" | head -1)
+  tmp=$(mktemp -d)
+  curl -fsSL "https://registry.npmjs.org/openwiki/-/openwiki-$version.tgz" | tar -xz -C "$tmp" package/package.json
+  nix shell nixpkgs#nodejs -c sh -c '
+    cd "$1" && node "$2" &&
+    npm install --package-lock-only --ignore-scripts --legacy-peer-deps' \
+    _ "$tmp/package" "$PWD/$dir/strip-package-json.js"
+  cp "$tmp/package/package-lock.json" "$dir/package-lock.json"
+  rm -rf "$tmp"
+  hash=$(nix run nixpkgs#prefetch-npm-deps -- "$dir/package-lock.json")
+  [[ $hash == sha256-* ]] || { echo "openwiki: prefetch-npm-deps gave '$hash'" >&2 && return 1; }
+  sed -i "s|npmDepsHash = \"[^\"]*\"|npmDepsHash = \"$hash\"|" "$dir/package.nix"
+  echo "openwiki: regenerated package-lock.json, npmDepsHash $hash"
 }
 
 # Bump every package `outdated` reports as behind, to that exact version.

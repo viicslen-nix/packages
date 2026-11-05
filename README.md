@@ -113,8 +113,8 @@ nix flake check  # formatting + statix gates
   Vivaldi's apt index instead. Per-package flags go in a `nix-update-args`
   file beside its `package.nix`, one argument per line. Multi-platform `fetchurl` needs a second pass
   with `--system aarch64-linux`.
-- `openwiki`'s `package-lock.json` is generated, not upstream: regenerate it
-  before `npmDepsHash` on every bump.
+- `openwiki`'s `package-lock.json` is generated, not upstream: `bump openwiki`
+  regenerates it and `npmDepsHash` after nix-update (`openwiki_lock` in the script).
 
 </details>
 
