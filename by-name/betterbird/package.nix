@@ -3,7 +3,7 @@
   thunderbird-esr-bin-unwrapped,
   wrapThunderbird,
 }: let
-  version = "153.3.0esr-bb9";
+  version = "153.6.0esr-bb12";
 
   unwrapped = thunderbird-esr-bin-unwrapped.overrideAttrs (old: {
     pname = "betterbird-unwrapped";
@@ -11,7 +11,7 @@
 
     src = fetchurl {
       url = "https://www.betterbird.eu/downloads/LinuxArchive/betterbird-${version}.en-US.linux-x86_64.tar.xz";
-      hash = "sha256-EA+55pAULVYeaI05taZqiJvLbbQHGqJd0QFe0OoUj7M=";
+      hash = "sha256-nYC2s0Jcl9k87qutPy3gxyLg/QVTHY0to0SVhqhV9B8=";
     };
 
     # libName must keep the "thunderbird" prefix: wrapThunderbird keys the mail desktop entry on it

@@ -15,12 +15,8 @@ python3Packages.buildPythonPackage rec {
     hash = "sha256-KE3FR6BCwwn+r9mp9KdLKoZRt5Y+o6xssvLWSIn2qPM=";
   };
 
-  # Upstream's `mcp==2.1.1` needs httpx2/mcp-types, which nixpkgs lacks; the
-  # server only uses the 1.x FastMCP surface under its 2.x name.
   postPatch = ''
     substituteInPlace pyproject.toml --replace-fail '"setuptools==84.0.0"' '"setuptools"'
-    substituteInPlace src/mcp_server.py \
-      --replace-fail 'from mcp.server import MCPServer' 'from mcp.server.fastmcp import FastMCP as MCPServer'
   '';
 
   build-system = [python3Packages.setuptools];

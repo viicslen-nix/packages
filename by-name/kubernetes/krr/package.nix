@@ -35,14 +35,14 @@
 in
   pythonPackages.buildPythonApplication rec {
     pname = "krr";
-    version = "1.31.0";
+    version = "1.31.3";
     pyproject = true;
 
     src = fetchFromGitHub {
       owner = "robusta-dev";
       repo = "krr";
       tag = "v${version}";
-      hash = "sha256-XQFJerQ6MenU8j85cWYJgjZlZh2u8rQzCJQPCepVlMc=";
+      hash = "sha256-wLimiOiJXPZ7bcznVCo+75++Pzbc3G9D+DMg981sndQ=";
     };
 
     postPatch = ''
@@ -87,6 +87,7 @@ in
     dependencies = with pythonPackages; [
       alive-progress
       cachetools
+      click
       kubernetes
       numpy
       pandas
