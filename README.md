@@ -37,6 +37,7 @@ a `package.nix` is one package (its sibling files are helpers); otherwise each
 | `betterbird` | Betterbird, the Thunderbird fork, as a wrapped binary |
 | `ccstatusline` | Status line formatter for Claude Code |
 | `coderabbit` | CodeRabbit CLI |
+| `open-code-review` | Open Code Review (`ocr`), with its `~/.opencodereview` moved to XDG config/data/state |
 | `github.{copilot-cli,copilot-desktop}` | GitHub Copilot CLI and desktop app |
 | `iris` | Inline CLI autocomplete overlay (patched for nushell) |
 | `kubernetes.krr` | Robusta KRR, with a vendored `prometrix` |
