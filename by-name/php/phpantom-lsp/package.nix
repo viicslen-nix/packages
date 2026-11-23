@@ -1,11 +1,11 @@
 {pkgs}:
 pkgs.stdenv.mkDerivation rec {
   pname = "phpantom-lsp";
-  version = "0.11.1";
+  version = "1.0.0";
 
   src = pkgs.fetchurl {
     url = "https://github.com/AJenbo/phpantom_lsp/releases/download/${version}/phpantom_lsp-x86_64-unknown-linux-gnu.tar.gz";
-    hash = "sha256-kG3YEE1L+CqhxCJfuil6kP8c/wVS32Ne6Fj8Jy9EX8Y=";
+    hash = "sha256-H/+2FgZpiKP1/RfPASxfec5bbC367mKWCDlgcpn8KQY=";
   };
 
   nativeBuildInputs = with pkgs; [

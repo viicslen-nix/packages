@@ -8,11 +8,11 @@
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "laravel-cloud-cli";
-  version = "0.7.3";
+  version = "0.7.8";
 
   src = fetchurl {
     url = "https://github.com/laravel/cloud-cli/releases/download/v${finalAttrs.version}/cloud";
-    hash = "sha256-N60sQ5QmJI7DQIca4tt+08DXWIQQgI6rKl7RgIZT98k=";
+    hash = "sha256-rcZwYztJO+A8H1CYt+nsVkrNQIfff72P1mC/kS/HoAA=";
   };
 
   dontUnpack = true;
