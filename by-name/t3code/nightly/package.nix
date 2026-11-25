@@ -6,7 +6,7 @@
   # Named after llm-agents' wrapper argument: the t3code home-manager module `.override`s it.
   t3code-unwrapped ? null,
 }: let
-  version = "0.1.12-nightly.20261123.5138";
+  version = "0.1.13-nightly.20261125.5245";
 
   # Toolchain from llm-agents' nixpkgs, not ours: hosts override our nixpkgs, and the pnpmDeps hash depends on pnpm.
   stable = llm-agents.t3code.unwrapped.override {
@@ -25,12 +25,13 @@
     owner = "pingdotgg";
     repo = "t3code";
     tag = "v${version}";
-    hash = "sha256-bV+P9T6Ry7Qg4k0rpEKGDqWU6Q5u6BNB0AfbC4JhPGE=";
+    hash = "sha256-dtSik6WZGNhJFEfXSZbGd7tIY7xsAvLkrEGWMlMe6vk=";
   };
 
   # A changed Cargo.lock surfaces as a cargo-vendor hash mismatch; set `cargoHash` here then.
   resourceMonitor = stable.passthru.resourceMonitor.overrideAttrs {
     inherit version src;
+    cargoHash = "sha256-deTy3FFcOwhxZnEbWDXFGVFFoKUex434ADJQtchVzbs=";
   };
 
   cli = "t3-nightly";
@@ -54,7 +55,7 @@
     pnpmDeps =
       (old.pnpmDeps.override {
         inherit version src;
-        hash = "sha256-+bzoOYxlqz5oOKay0wrKfGtq+/T4HxBF/kPIhtPV2lY=";
+        hash = "sha256-OCqoxySe0paljpgOBd0ZSZKuD8iEnlVGf2veL9RUbmA=";
       }).overrideAttrs (o: {
         installPhase = replaceOrThrow "fetchPnpmDeps' --force" ''"--force"'' "" o.installPhase;
       });

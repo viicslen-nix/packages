@@ -6,13 +6,13 @@
 }:
 python3Packages.buildPythonPackage rec {
   pname = "browser-harness";
-  version = "0.1.13";
+  version = "0.1.15";
   pyproject = true;
 
   src = fetchPypi {
     pname = "browser_harness";
     inherit version;
-    hash = "sha256-KE3FR6BCwwn+r9mp9KdLKoZRt5Y+o6xssvLWSIn2qPM=";
+    hash = "sha256-eQ0p2xL9hMPrfXZTE4WAaYf+5rrOdKGMPiGub1zcmpk=";
   };
 
   postPatch = ''
