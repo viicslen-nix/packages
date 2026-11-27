@@ -5,7 +5,7 @@
   autoPatchelfHook,
   glibc,
 }: let
-  version = "1.0.115";
+  version = "1.0.117";
 in
   stdenv.mkDerivation {
     pname = "github-copilot-cli";
@@ -15,7 +15,7 @@ in
       if stdenv.hostPlatform.isLinux && stdenv.hostPlatform.isx86_64
       then {
         url = "https://github.com/github/copilot-cli/releases/download/v${version}/copilot-linux-x64.tar.gz";
-        hash = "sha256-4Bl1vzpzeRsMCt/fDXCTuGFhhttht4szYEsSSAaAiBY=";
+        hash = "sha256-0SBS2MtCwO5DRftiXT1l38bhn2UnfipIJ+4Qcjrc6Ko=";
       }
       else throw "Unsupported platform: ${stdenv.hostPlatform.system}"
     );
