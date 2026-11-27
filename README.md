@@ -46,6 +46,7 @@ a `package.nix` is one package (its sibling files are helpers); otherwise each
 | `openwork` | OpenWork desktop app |
 | `php.{laravel-lsp,phpantom-lsp}` | PHP language servers |
 | `php.laravel-cloud-cli` | Laravel Cloud CLI (`cloud`), the release phar wrapped with PHP |
+| `php.pun` | Pun PHP toolchain (`pun`, `punx`), the static musl release binary |
 | `pixelflasher` | Pixel phone flashing GUI |
 | `python.{browser-harness,cdp-use,fetch-use}` | browser-use's browser harness and its libraries |
 | `python.jev-ultrafast` | Jev Ultrafast browser agent |
